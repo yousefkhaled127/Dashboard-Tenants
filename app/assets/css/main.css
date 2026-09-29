@@ -1,211 +1,31 @@
-/* ═══════════════════════════════════════
-   Design Tokens
-═══════════════════════════════════════ */
 :root {
-  --clr-bg:          #0a0f1e;
-  --clr-bg-2:        #0d1526;
-  --clr-bg-card:     #111827;
-  --clr-border:      rgba(255, 255, 255, 0.08);
-
-  --clr-primary:     #6366f1;
-  --clr-primary-2:   #818cf8;
-  --clr-accent:      #06b6d4;
-
-  --clr-text:        #f1f5f9;
-  --clr-text-muted:  #94a3b8;
-  --clr-text-dim:    #64748b;
-
-  --gradient-hero:   linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
-  --gradient-card:   linear-gradient(135deg, rgba(99,102,241,.12), rgba(6,182,212,.06));
-
-  --radius-sm:  8px;
-  --radius-md:  14px;
-  --radius-lg:  22px;
-  --radius-xl:  32px;
-
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.25);
-
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'Fira Code', monospace;
-
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --orange: #E1712F;
+  --orange-dark: #B85423;
+  --orange-tint: #FBE9DC;
+  --ink: #2E2B27;
+  --charcoal: #3A3733;
+  --muted: #8A8479;
+  --bg: #F3EFE8;
+  --surface: #FFFFFF;
+  --line: #E6DFD3;
+  --danger: #B3452F;
+  --danger-tint: #F7E7E2;
 }
 
-/* ═══════════════════════════════════════
-   Reset & Base
-═══════════════════════════════════════ */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  scroll-behavior: smooth;
-}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 
 body {
-  font-family: var(--font-sans);
-  background: var(--clr-bg);
-  color: var(--clr-text);
-  line-height: 1.7;
-  overflow-x: hidden;
+  font-family: 'Tajawal', Tahoma, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  direction: rtl;
 }
 
-a {
-  text-decoration: none;
-  color: inherit;
+input, select, button {
+  font-family: inherit;
+  font-size: 15px;
 }
 
-img {
-  max-width: 100%;
-  display: block;
-}
-
-/* ═══════════════════════════════════════
-   Typography helpers
-═══════════════════════════════════════ */
-.text-gradient {
-  background: var(--gradient-hero);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.text-muted-custom {
-  color: var(--clr-text-muted);
-}
-
-.font-mono {
-  font-family: var(--font-mono);
-}
-
-/* ═══════════════════════════════════════
-   Section helpers
-═══════════════════════════════════════ */
-.section-py {
-  padding-top: 100px;
-  padding-bottom: 100px;
-}
-
-.section-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--clr-primary-2);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-}
-
-.section-label::before {
-  content: '';
-  width: 28px;
-  height: 2px;
-  background: var(--clr-primary-2);
-  border-radius: 2px;
-}
-
-.section-title {
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
-  font-weight: 800;
-  line-height: 1.2;
-  color: var(--clr-text);
-}
-
-/* ═══════════════════════════════════════
-   Glassmorphism card
-═══════════════════════════════════════ */
-.glass-card {
-  background: var(--gradient-card);
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: var(--transition);
-}
-
-.glass-card:hover {
-  border-color: rgba(99, 102, 241, 0.35);
-  box-shadow: var(--shadow-glow);
-  transform: translateY(-4px);
-}
-
-/* ═══════════════════════════════════════
-   Buttons
-═══════════════════════════════════════ */
-.btn-primary-custom {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--gradient-hero);
-  color: #fff;
-  font-weight: 600;
-  font-size: 0.95rem;
-  padding: 12px 28px;
-  border-radius: 50px;
-  border: none;
-  cursor: pointer;
-  transition: var(--transition);
-  white-space: nowrap;
-}
-
-.btn-primary-custom:hover {
-  opacity: 0.88;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.45);
-  color: #fff;
-}
-
-.btn-outline-custom {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  color: var(--clr-text);
-  font-weight: 600;
-  font-size: 0.95rem;
-  padding: 11px 28px;
-  border-radius: 50px;
-  border: 1.5px solid var(--clr-border);
-  cursor: pointer;
-  transition: var(--transition);
-  white-space: nowrap;
-}
-
-.btn-outline-custom:hover {
-  border-color: var(--clr-primary);
-  color: var(--clr-primary-2);
-  transform: translateY(-2px);
-}
-
-/* ═══════════════════════════════════════
-   Scrollbar
-═══════════════════════════════════════ */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--clr-bg); }
-::-webkit-scrollbar-thumb {
-  background: var(--clr-primary);
-  border-radius: 3px;
-}
-
-/* ═══════════════════════════════════════
-   Selection
-═══════════════════════════════════════ */
-::selection {
-  background: rgba(99, 102, 241, 0.35);
-  color: #fff;
-}
-
-/* ═══════════════════════════════════════
-   Responsive
-═══════════════════════════════════════ */
-@media (max-width: 768px) {
-  .section-py {
-    padding-top: 64px;
-    padding-bottom: 64px;
-  }
-}
+button { cursor: pointer; }
