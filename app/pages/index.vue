@@ -129,8 +129,16 @@ function login() {
   if (!user) { error.value = 'المستخدم غير موجود'; return }
   if (user.password !== password.value) { error.value = 'كلمة المرور غير صحيحة'; return }
 
-  // TODO: navigate to dashboard
-  alert(`مرحباً ${user.name}`)
+  // حفظ الجلسة
+  localStorage.setItem('tahsilat-session', JSON.stringify({ role: selectedRole.value, id: user.id, name: user.name }))
+
+  if (selectedRole.value === 'supervisor') {
+    navigateTo('/supervisor')
+  } else if (selectedRole.value === 'collector') {
+    navigateTo('/collector')
+  } else {
+    navigateTo('/owner')
+  }
 }
 </script>
 
