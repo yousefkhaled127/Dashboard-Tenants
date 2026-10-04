@@ -29,3 +29,23 @@ input, select, button {
 }
 
 button { cursor: pointer; }
+
+@media print {
+  .sidebar,
+  .mobile-topbar,
+  .sync-box,
+  .logout-btn,
+  .version-tag {
+    display: none !important;
+  }
+  .shell {
+    display: block !important;
+  }
+  .main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  body {
+    background: #fff !important;
+  }
+}

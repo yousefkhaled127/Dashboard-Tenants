@@ -7,7 +7,7 @@
           <option v-for="m in months" :key="m" :value="m">{{ monthLabel(m) }}</option>
         </select>
         <button class="btn btn-ghost btn-sm" @click="exportExcel">⬇ تصدير Excel</button>
-        <button class="btn btn-dark btn-sm"  @click="window.print()">⬇ تصدير PDF</button>
+        <button class="btn btn-dark btn-sm"  @click="printPage">⬇ تصدير PDF</button>
       </div>
     </div>
 
@@ -82,8 +82,11 @@ const totalCollected = computed(()=>state.value.collectors.reduce((s,c)=>s+colle
 const monthPayments  = computed(()=>approvedPayments.value.filter(p=>p.month===mk.value).sort((a,b)=>a.submittedAt.localeCompare(b.submittedAt)))
 const pendingCount   = computed(()=>state.value.payments.filter(p=>p.status==='pending'&&p.month===mk.value).length)
 
-async function exportExcel(){
-  const XLSX = await import('xlsx')
+function printPage() {
+  window.print()
+}
+
+async function exportExcel(){  const XLSX = await import('xlsx')
   const summary = state.value.collectors.map(c=>({
     'المحصل':c.name,'المستهدف':targetForCollector(c.id),'المحصّل':collectedForMonth(c.id,mk.value),
     'النسبة %': targetForCollector(c.id)?Math.round(collectedForMonth(c.id,mk.value)/targetForCollector(c.id)*100):0,
@@ -123,4 +126,14 @@ tr:last-child td{border-bottom:none;}
 .btn-ghost{background:transparent;color:#3A3733;border:1.5px solid #E6DFD3;}.btn-ghost:hover{border-color:#3A3733;}
 .btn-dark{background:#3A3733;color:#fff;}.btn-dark:hover{background:#2a2724;}
 .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:8px;}
+
+@media print {
+  /* إخفاء كل حاجة ماعدا المحتوى */
+  .report-toolbar { display:none !important; }
+  .pill-tabs       { display:none !important; }
+
+  /* طباعة نظيفة */
+  .card { box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; }
+  table { font-size:11.5px; }
+}
 </style>
