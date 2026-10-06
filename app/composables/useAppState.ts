@@ -112,6 +112,7 @@ export function useAppState() {
 
   // ---------- load / save ----------
   function load() {
+    if (!import.meta.client) return
     if (_loaded.value) return
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
@@ -130,6 +131,7 @@ export function useAppState() {
   }
 
   function save() {
+    if (!import.meta.client) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.value))
   }
 
@@ -197,6 +199,20 @@ export function useAppState() {
   const myTenants    = (collectorId: string) => state.value.tenants.filter(t => t.collectorId === collectorId)
   const ownerTenants = (ownerId: string)     => state.value.tenants.filter(t => t.ownerId === ownerId)
 
+  // ---------- collector alerts (overdue / soon promises) ----------
+  const collectorAlerts = (collectorId: string) => {
+    const alerts: { promise: TenantPromise; tenant: Tenant; status: 'due' | 'soon' }[] = []
+    const now = new Date(); now.setHours(0, 0, 0, 0)
+    for (const t of state.value.tenants.filter(t => t.collectorId === collectorId)) {
+      for (const p of t.promises) {
+        const diff = Math.round((new Date(p.date).getTime() - now.getTime()) / 86400000)
+        if (diff < 0)       alerts.push({ promise: p, tenant: t, status: 'due' })
+        else if (diff <= 2) alerts.push({ promise: p, tenant: t, status: 'soon' })
+      }
+    }
+    return alerts.sort((a, b) => new Date(a.promise.date).getTime() - new Date(b.promise.date).getTime())
+  }
+
   // ---------- notice helpers ----------
   const pendingNoticeRequests   = computed(() => state.value.notices.filter(n => n.status === 'requested'))
   const pendingNoticeDeliveries = computed(() => state.value.notices.filter(n => n.status === 'delivered_pending'))
@@ -244,7 +260,7 @@ export function useAppState() {
     collectorName, ownerName, tenantName, supervisorName, getTenant,
     approvedPayments, pendingPayments,
     collectedForMonth, collectedForTenantMonth, targetForCollector,
-    myTenants, ownerTenants,
+    myTenants, ownerTenants, collectorAlerts,
     pendingNoticeRequests, pendingNoticeDeliveries, pendingMaintReqCount,
     ownerMaintenance, acceptedMaintenance,
     orgRatingAvg, starsDisplay,
