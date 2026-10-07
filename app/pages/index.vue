@@ -73,14 +73,14 @@
 // ===== DATA =====
 const users = {
   supervisor: [
-    { id: 'sup1', name: 'المشرف الأول',  password: 'Admin@123' },
-    { id: 'sup2', name: 'المشرف الثاني', password: 'Admin@123' },
+    { id: 'sup1', name: 'ابو حيدر',  password: 'Admin@123' },
+    { id: 'sup2', name: 'صديق ', password: 'Admin@123' },
     { id: 'sup3', name: 'المشرف الثالث', password: 'Admin@123' },
   ],
   collector: [
-    { id: 'col1', name: 'المحصل الأول',  password: '1234' },
-    { id: 'col2', name: 'المحصل الثاني', password: '1234' },
-    { id: 'col3', name: 'المحصل الثالث', password: '1234' },
+    { id: 'col1', name: 'عبد الرحمن',  password: '1234' },
+    { id: 'col2', name: 'ابو عبد الله', password: '1234' },
+    { id: 'col3', name: 'ياسر', password: '1234' },
   ],
   owner: [
     { id: 'own1', name: 'المالك الأول',  password: '1234' },
