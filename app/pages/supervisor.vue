@@ -90,12 +90,18 @@
 </template>
 
 <script setup lang="ts">
+import { useAuth } from '~/composables/useAuth'
+import { useApi } from '~/composables/useApi'
 import { useAppState } from '~/composables/useAppState'
 
-const { state, load, pendingPayments, pendingNoticeRequests, pendingNoticeDeliveries, pendingMaintReqCount } = useAppState()
+const { user, fetchMe, requireRole, logout: authLogout } = useAuth()
+const { supervisor } = useApi()
 
-// ── session ──
-const session = ref({ name: '', id: '' })
+// useAppState فقط للصفحات التي لم تُربط بالـ API بعد (إشعارات/صيانة)
+const { load, pendingNoticeRequests, pendingNoticeDeliveries, pendingMaintReqCount } = useAppState()
+
+// ── session (متاح للصفحات الفرعية عبر inject) ──
+const session = computed(() => ({ id: String(user.value?.id || ''), name: user.value?.name || '', role: user.value?.type || '' }))
 
 // ── mobile ──
 const mobileOpen = ref(false)
@@ -108,33 +114,29 @@ function getNow() {
   return new Date().toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit' })
 }
 
-function refresh() {
-  load()
+const pendingCount = ref(0)
+
+async function refresh() {
+  await fetchDashboardData()
   syncTime.value = getNow()
   showToastMsg('تم تحديث البيانات')
 }
 
-// تحميل الـsession فوراً قبل أي شيء
-if (import.meta.client) {
+async function fetchDashboardData() {
   try {
-    const raw = localStorage.getItem('tahsilat-session')
-    if (raw) {
-      const s = JSON.parse(raw)
-      if (s.role === 'supervisor') session.value = s
-    }
-  } catch {}
+    const data = await supervisor.approvals({ tab: 'pending' })
+    pendingCount.value = data.tabs.pending_count
+  } catch { /* تجاهل */ }
+  // load useAppState للصفحات غير المرتبطة بالـ API
+  load()
 }
 
-onMounted(() => {
-  load()
+onMounted(async () => {
+  if (!requireRole('supervisor')) return
+  await fetchMe()
+  if (!requireRole('supervisor')) return
   syncTime.value = getNow()
-  try {
-    const raw = localStorage.getItem('tahsilat-session')
-    if (!raw) { navigateTo('/'); return }
-    const s = JSON.parse(raw)
-    if (s.role !== 'supervisor') { navigateTo('/'); return }
-    session.value = s
-  } catch { navigateTo('/') }
+  await fetchDashboardData()
 })
 
 // ── toast ──
@@ -144,6 +146,7 @@ function showToastMsg(msg: string) {
   setTimeout(() => { toast.value = '' }, 2400)
 }
 provide('showToast', showToastMsg)
+provide('supervisorSession', session)
 
 // ── nav ──
 const navItems = computed(() => [
@@ -151,7 +154,7 @@ const navItems = computed(() => [
   { to: '/supervisor/import',        label: 'استيراد إكسل' },
   { to: '/supervisor/tenants',       label: 'المستأجرون' },
   { to: '/supervisor/collectors',    label: 'المستخدمون' },
-  { to: '/supervisor/payments',      label: 'اعتماد السدادات',           badge: pendingPayments.value.length || null },
+  { to: '/supervisor/payments',      label: 'اعتماد السدادات',           badge: pendingCount.value || null },
   { to: '/supervisor/ownerpayments', label: 'سدادات الملاك' },
   { to: '/supervisor/notices',       label: 'الإشعارات',                 badge: (pendingNoticeRequests.value.length + pendingNoticeDeliveries.value.length) || null },
   { to: '/supervisor/properties',    label: 'إدارة الأملاك' },
@@ -162,8 +165,8 @@ const navItems = computed(() => [
   { to: '/supervisor/settings',      label: 'كلمة المرور' },
 ])
 
-function logout() {
-  localStorage.removeItem('tahsilat-session')
+async function logout() {
+  await authLogout()
   navigateTo('/')
 }
 </script>

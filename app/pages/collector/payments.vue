@@ -1,11 +1,11 @@
 <template>
   <div>
     <div class="page-title">
-      <div><h2>سداداتي</h2><p>{{ filteredList.length }} سداد{{ searchQ ? ` (من أصل ${baseList.length})` : '' }}</p></div>
+      <div><h2>سداداتي</h2><p>{{ payments.length }} سداد{{ searchQ ? ` (بحث)` : '' }}</p></div>
     </div>
 
     <div class="search-bar">
-      <input v-model="searchQ" placeholder="ابحث باسم المستأجر أو رقم الإيصال..." />
+      <input v-model="searchQ" placeholder="ابحث باسم المستأجر أو رقم الإيصال..." @input="onSearchInput" />
     </div>
 
     <div class="card">
@@ -15,25 +15,22 @@
             <tr><th>المستأجر</th><th>النوع</th><th>الإيصال / المرفق</th><th>المبلغ</th><th>الفترة</th><th>التاريخ</th><th>الحالة</th></tr>
           </thead>
           <tbody>
-            <template v-if="filteredList.length">
-              <tr v-for="p in filteredList" :key="p.id">
-                <td>{{ tenantName(p.tenantId || '') }}</td>
-                <td>{{ paymentTypeLabel(p.type) }}</td>
+            <template v-if="payments.length">
+              <tr v-for="p in payments" :key="p.id">
+                <td>{{ p.tenant?.name || '—' }}</td>
+                <td>{{ p.payment_method }}</td>
                 <td>
-                  <div v-if="p.receiptNumber">#{{ p.receiptNumber }}</div>
-                  <div v-if="p.image" style="margin-top:4px;display:flex;align-items:center;gap:6px;">
-                    <img v-if="!p.image.startsWith('data:application/pdf')" :src="p.image" class="thumb" @click="viewSrc = p.image" />
-                    <span v-else class="file-chip" @click="viewSrc = p.image">📄 PDF</span>
-                    <button class="dl-link" @click="download(p.image, p.imageName || `ايصال-${p.id}.jpg`)">⬇ تنزيل</button>
+                  <div v-if="p.receipt_number">#{{ p.receipt_number }}</div>
+                  <div v-if="p.attachment_url" style="margin-top:4px;display:flex;align-items:center;gap:6px;">
+                    <a :href="p.attachment_url" target="_blank" class="dl-link">عرض المرفق</a>
                   </div>
-                  <span v-if="!p.receiptNumber && !p.image" class="muted">—</span>
+                  <span v-if="!p.receipt_number && !p.attachment_url" class="muted">—</span>
                 </td>
                 <td>{{ fmtMoney(p.amount) }}</td>
-                <td>{{ p.month }}</td>
-                <td>{{ fmtDate(p.submittedAt.slice(0,10)) }}</td>
+                <td>{{ p.period }}</td>
+                <td>{{ p.payment_date_formatted }}</td>
                 <td>
-                  <span class="badge" :class="`badge-${p.status}`">{{ statusLabel(p.status) }}</span>
-                  <div v-if="p.status === 'rejected' && p.rejectReason" class="muted" style="font-size:11px;margin-top:3px;">{{ p.rejectReason }}</div>
+                  <span class="badge" :class="`badge-${p.status}`">{{ p.status_label }}</span>
                 </td>
               </tr>
             </template>
@@ -44,48 +41,34 @@
         </table>
       </div>
     </div>
-
-    <!-- Viewer -->
-    <div v-if="viewSrc" class="modal-overlay" @mousedown.self="viewSrc = null">
-      <div class="modal" style="text-align:center;">
-        <iframe v-if="viewSrc.startsWith('data:application/pdf')" :src="viewSrc" style="width:100%;height:70vh;border:none;border-radius:10px;" />
-        <img v-else :src="viewSrc" style="max-width:100%;border-radius:10px;" />
-        <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;">
-          <button class="btn btn-ghost" @click="viewSrc = null">إغلاق</button>
-          <button class="btn btn-primary" @click="download(viewSrc!, 'مرفق')">⬇ تنزيل</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAppState } from '~/composables/useAppState'
+import { useApi, type CollectorPaymentItem } from '~/composables/useApi'
+import { useFormat } from '~/composables/useFormat'
 
-const { state, load, fmtMoney, fmtDate, tenantName, paymentTypeLabel } = useAppState()
-onMounted(load)
+const { collector } = useApi()
+const { fmtMoney, monthKey } = useFormat()
 
-const session  = inject<Ref<{ id: string }>>('collectorSession', ref({ id: '' }))
-const searchQ  = ref('')
-const viewSrc  = ref<string | null>(null)
+const mk = monthKey()
+const searchQ = ref('')
+const payments = ref<CollectorPaymentItem[]>([])
 
-const baseList = computed(() =>
-  state.value.payments.filter(p => p.collectorId === session.value.id)
-    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-)
-const filteredList = computed(() => {
-  const q = searchQ.value.trim().toLowerCase(); if (!q) return baseList.value
-  return baseList.value.filter(p =>
-    tenantName(p.tenantId || '').toLowerCase().includes(q) ||
-    (p.receiptNumber || '').toLowerCase().includes(q)
-  )
-})
-
-const statusLabel = (s: string) => ({ pending: 'قيد المراجعة', approved: 'معتمد', rejected: 'مرفوض' } as any)[s] || s
-
-function download(src: string, name: string) {
-  const a = document.createElement('a'); a.href = src; a.download = name; a.click()
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+function onSearchInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(fetchList, 350)
 }
+
+async function fetchList() {
+  try {
+    const data = await collector.payments({ search: searchQ.value || undefined, period: mk })
+    payments.value = data.payments
+  } catch { /* تجاهل */ }
+}
+
+onMounted(fetchList)
 </script>
 
 <style scoped>
@@ -101,9 +84,7 @@ table { width:100%; border-collapse:collapse; font-size:13.5px; }
 th { text-align:right; color:#8A8479; font-weight:700; font-size:12px; padding:9px 10px; border-bottom:1.5px solid #E6DFD3; white-space:nowrap; }
 td { padding:11px 10px; border-bottom:1px solid #E6DFD3; vertical-align:middle; }
 tr:last-child td { border-bottom:none; }
-.thumb { width:44px; height:44px; border-radius:8px; object-fit:cover; border:1px solid #E6DFD3; cursor:pointer; }
-.file-chip { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:8px; background:#FBE9DC; color:#B85423; font-weight:800; font-size:12px; cursor:pointer; }
-.dl-link { background:none; border:none; color:#B85423; font-weight:800; font-size:12px; cursor:pointer; padding:0; }
+.dl-link { color:#B85423; font-weight:800; font-size:12px; text-decoration:none; }
 .dl-link:hover { text-decoration:underline; }
 .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:800; }
 .badge-pending  { background:#FBEEDA; color:#B8791E; }
@@ -112,9 +93,4 @@ tr:last-child td { border-bottom:none; }
 .muted { color:#8A8479; }
 .empty-state { text-align:center; padding:40px 20px; color:#8A8479; }
 .empty-state b { display:block; color:#3A3733; font-size:14.5px; margin-bottom:4px; }
-.modal-overlay { position:fixed; inset:0; background:rgba(46,43,39,.5); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
-.modal { background:#fff; border-radius:16px; padding:26px; width:100%; max-width:560px; max-height:90vh; overflow:auto; }
-.btn { border:none; border-radius:10px; padding:10px 18px; font-weight:800; font-size:14px; display:inline-flex; align-items:center; gap:8px; cursor:pointer; transition:.15s; }
-.btn-ghost { background:transparent; color:#3A3733; border:1.5px solid #E6DFD3; } .btn-ghost:hover { border-color:#3A3733; }
-.btn-primary { background:#E1712F; color:#fff; } .btn-primary:hover { background:#B85423; }
 </style>

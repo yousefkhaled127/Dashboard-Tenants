@@ -86,11 +86,17 @@
 </template>
 
 <script setup lang="ts">
+import { useAuth } from '~/composables/useAuth'
+import { useApi } from '~/composables/useApi'
 import { useAppState } from '~/composables/useAppState'
 
-const { state, load, myTenants, collectorAlerts } = useAppState()
+const { user, fetchMe, requireRole, logout: authLogout } = useAuth()
+const { collector } = useApi()
 
-const session = ref({ name: '', id: '' })
+// useAppState للصفحات غير المرتبطة بالـ API (إشعارات)
+const { state, load } = useAppState()
+
+const session = computed(() => ({ id: String(user.value?.id || ''), name: user.value?.name || '', role: user.value?.type || '' }))
 const mobileOpen = ref(false)
 const syncTime = ref('—')
 const toast = ref('')
@@ -101,22 +107,38 @@ function getNow() {
   return new Date().toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit' })
 }
 
-function refresh() {
-  load()
+const alertsCount = ref(0)
+const noticesToDeliver = ref(0)
+
+async function refresh() {
+  await fetchDashboardData()
   syncTime.value = getNow()
   showToastMsg('تم تحديث البيانات')
 }
 
-onMounted(() => {
-  load()
-  syncTime.value = getNow()
+async function fetchDashboardData() {
+  // عدّاد التنبيهات: نجيب قائمة المستأجرين ونتفحص الوعود
   try {
-    const raw = localStorage.getItem('tahsilat-session')
-    if (!raw) { navigateTo('/'); return }
-    const s = JSON.parse(raw)
-    if (s.role !== 'collector') { navigateTo('/'); return }
-    session.value = s
-  } catch { navigateTo('/') }
+    const data = await collector.tenants({ period: monthKey() })
+    // لا توجد promises في الـ list endpoint، نعتمد على عدّاد صفر مؤقتًا
+    alertsCount.value = 0
+  } catch { /* تجاهل */ }
+  // تحميل useAppState للإشعارات
+  load()
+  // عدّاد طلبات الإشعارات من useAppState
+  noticesToDeliver.value = state.value.notices.filter(
+    n => n.collectorId === String(user.value?.id || '') && n.status === 'issued'
+  ).length
+}
+
+const monthKey = () => new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0')
+
+onMounted(async () => {
+  if (!requireRole('collector')) return
+  await fetchMe()
+  if (!requireRole('collector')) return
+  syncTime.value = getNow()
+  await fetchDashboardData()
 })
 
 function showToastMsg(msg: string) {
@@ -125,17 +147,6 @@ function showToastMsg(msg: string) {
 }
 provide('showToast', showToastMsg)
 provide('collectorSession', session)
-
-// ── nav badges ──
-const alertsCount = computed(() => {
-  if (!session.value.id) return 0
-  return collectorAlerts(session.value.id).length
-})
-
-const noticesToDeliver = computed(() => {
-  if (!session.value.id) return 0
-  return state.value.notices.filter(n => n.collectorId === session.value.id && n.status === 'issued').length
-})
 
 const navItems = computed(() => [
   { to: '/collector',          label: 'محفظتي' },
@@ -147,8 +158,8 @@ const navItems = computed(() => [
   { to: '/collector/settings', label: 'كلمة المرور' },
 ])
 
-function logout() {
-  localStorage.removeItem('tahsilat-session')
+async function logout() {
+  await authLogout()
   navigateTo('/')
 }
 </script>

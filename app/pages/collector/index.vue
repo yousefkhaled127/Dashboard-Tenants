@@ -42,35 +42,65 @@
 
 <script setup lang="ts">
 import { Chart, registerables } from 'chart.js'
-import { useAppState } from '~/composables/useAppState'
-import { useSession } from '~/composables/useSession'
+import { useApi, type TenantListItem, type CollectorPaymentItem } from '~/composables/useApi'
+import { useFormat } from '~/composables/useFormat'
 
 Chart.register(...registerables)
 
-const { state, load, monthKey, monthLabel, fmtMoney, lastNMonths, collectedForMonth, targetForCollector, approvedPayments } = useAppState()
-const { session, loadSession } = useSession()
+const { collector } = useApi()
+const { monthKey, monthLabel, fmtMoney, lastNMonths } = useFormat()
 
-onMounted(() => { load(); loadSession() })
 const mk = monthKey()
+const myTenants = ref<TenantListItem[]>([])
+const myPayments = ref<CollectorPaymentItem[]>([])
 
-const collected = computed(() => collectedForMonth(session.value.id, mk))
-const target    = computed(() => targetForCollector(session.value.id))
-const pct       = computed(() => target.value ? Math.min(100, Math.round(collected.value / target.value * 100)) : 0)
-const allTime   = computed(() => approvedPayments.value.filter(p => p.collectorId === session.value.id).reduce((s, p) => s + Number(p.amount), 0))
+const collected = computed(() =>
+  myPayments.value.filter(p => p.status === 'approved' && p.period === mk).reduce((s, p) => s + Number(p.amount), 0)
+)
+const target = computed(() =>
+  myTenants.value.reduce((s, t) => s + Number(t.monthly_target || 0), 0)
+)
+const pct = computed(() => target.value ? Math.min(100, Math.round(collected.value / target.value * 100)) : 0)
+const allTime = computed(() =>
+  myPayments.value.filter(p => p.status === 'approved').reduce((s, p) => s + Number(p.amount), 0)
+)
 
 const chartEl = ref<HTMLCanvasElement | null>(null)
 let chart: Chart | null = null
 
-onMounted(() => nextTick(() => {
+async function loadData() {
+  try {
+    const [tData, pData] = await Promise.all([
+      collector.tenants({ period: mk }),
+      collector.payments({ period: mk, status: 'approved' }),
+    ])
+    myTenants.value = tData.tenants
+    myPayments.value = pData.payments
+  } catch { /* تجاهل */ }
+}
+
+onMounted(async () => {
+  await loadData()
+  await nextTick(drawChart)
+})
+
+function drawChart() {
   if (!chartEl.value) return
   const months = lastNMonths(6)
+  // نجلب سدادات كل شهر — لكن نعتمد على البيانات المتاحة (الشهر الحالي)
+  // للأشهر السابقة نحتاج API منفصل، حالياً نعرض الشهر الحالي فقط
+  const monthData = months.map(m =>
+    myPayments.value.filter(p => p.status === 'approved' && p.period === m).reduce((s, p) => s + Number(p.amount), 0)
+  )
+  const monthTarget = months.map(() => target.value)
+
   chart = new Chart(chartEl.value, {
     type: 'bar',
     data: {
       labels: months.map(monthLabel),
       datasets: [
-        { label: 'المحصّل',  data: months.map(m => collectedForMonth(session.value.id, m)), backgroundColor: '#E1712F', borderRadius: 8, maxBarThickness: 44 },
-        { label: 'المستهدف', data: months.map(() => targetForCollector(session.value.id)),  backgroundColor: '#3A3733', borderRadius: 8, maxBarThickness: 44 },
+        { label: 'المحصّل', data: monthData, backgroundColor: '#E1712F', borderRadius: 8, maxBarThickness: 44 },
+        { label: 'المستهدف', data: monthTarget, backgroundColor: '#3A3733', borderRadius: 8, maxBarThickness: 44 },
       ],
     },
     options: {
@@ -79,7 +109,8 @@ onMounted(() => nextTick(() => {
       scales: { x: { grid: { display: false } }, y: { grid: { color: '#EFE9DE' } } },
     },
   })
-}))
+}
+
 onUnmounted(() => chart?.destroy())
 </script>
 

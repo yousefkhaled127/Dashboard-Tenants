@@ -25,7 +25,7 @@
       <!-- Role Tabs -->
       <div class="role-tabs">
         <button
-          v-for="tab in roles"
+          v-for="tab in availableRoles"
           :key="tab.value"
           class="role-tab"
           :class="{ active: selectedRole === tab.value }"
@@ -35,18 +35,12 @@
         </button>
       </div>
 
-      <!-- Owner Search -->
-      <div v-if="selectedRole === 'owner'" class="field">
-        <label>ابحث باسمك</label>
-        <input v-model="ownerSearch" placeholder="اكتب اسمك للبحث..." />
-      </div>
-
       <!-- Name -->
       <div class="field">
         <label>الاسم</label>
         <select v-model="selectedUser">
           <option value="">{{ filteredUsers.length ? 'اختر الاسم' : 'لا توجد نتائج' }}</option>
-          <option v-for="u in filteredUsers" :key="u.id" :value="u.id">{{ u.name }}</option>
+          <option v-for="u in filteredUsers" :key="u.id" :value="u.username">{{ u.name }}</option>
         </select>
       </div>
 
@@ -61,7 +55,9 @@
         />
       </div>
 
-      <button class="btn-login" @click="login">تسجيل الدخول</button>
+      <button class="btn-login" :disabled="loading" @click="login">
+        {{ loading ? 'جارٍ الدخول...' : 'تسجيل الدخول' }}
+      </button>
 
       <button class="btn-portal" @click="navigateTo('/portal')">بوابة المستأجرين — طلب صيانة</button>
 
@@ -70,74 +66,120 @@
 </template>
 
 <script setup lang="ts">
-// ===== DATA =====
-const users = {
-  supervisor: [
-    { id: 'sup1', name: 'ابو حيدر',  password: 'Admin@123' },
-    { id: 'sup2', name: 'صديق ', password: 'Admin@123' },
-    { id: 'sup3', name: 'المشرف الثالث', password: 'Admin@123' },
-  ],
-  collector: [
-    { id: 'col1', name: 'عبد الرحمن',  password: '1234' },
-    { id: 'col2', name: 'ابو عبد الله', password: '1234' },
-    { id: 'col3', name: 'ياسر', password: '1234' },
-  ],
-  owner: [
-    { id: 'own1', name: 'المالك الأول',  password: '1234' },
-    { id: 'own2', name: 'المالك الثاني', password: '1234' },
-  ],
-}
+import { useApi, type Role, type UserByType } from '~/composables/useApi'
+import { useAuth } from '~/composables/useAuth'
 
-const roles = [
+const { auth } = useApi()
+const { login: doLogin } = useAuth()
+
+// ===== FALLBACK STATIC DATA =====
+// تظهر فوراً حتى لو الـ API مش شغال
+const STATIC_ROLES: Role[] = [
   { value: 'supervisor', label: 'مشرف' },
   { value: 'collector',  label: 'محصل' },
-  { value: 'owner',      label: 'مالك'  },
+  { value: 'owner',      label: 'مالك' },
 ]
 
-// ===== STATE =====
-const selectedRole = ref<'supervisor' | 'collector' | 'owner'>('supervisor')
-const selectedUser = ref('')
-const password     = ref('')
-const ownerSearch  = ref('')
-const error        = ref('')
-
-// ===== COMPUTED =====
-const filteredUsers = computed(() => {
-  const list = users[selectedRole.value]
-  const q = ownerSearch.value.trim().toLowerCase()
-  if (selectedRole.value === 'owner' && q) {
-    return list.filter(u => u.name.toLowerCase().includes(q))
-  }
-  return list
-})
-
-// ===== METHODS =====
-function selectRole(role: 'supervisor' | 'collector' | 'owner') {
-  selectedRole.value = role
-  selectedUser.value = ''
-  password.value     = ''
-  ownerSearch.value  = ''
-  error.value        = ''
+const STATIC_USERS: Record<string, UserByType[]> = {
+  supervisor: [
+    { id: 1, name: 'المشرف الأول',  username: 'supervisor1' },
+    { id: 2, name: 'المشرف الثاني', username: 'supervisor2' },
+    { id: 3, name: 'المشرف الثالث', username: 'supervisor3' },
+  ],
+  collector: [
+    { id: 4, name: 'المحصل الأول',  username: 'collector1' },
+    { id: 5, name: 'المحصل الثاني', username: 'collector2' },
+    { id: 6, name: 'المحصل الثالث', username: 'collector3' },
+  ],
+  owner: [
+    { id: 7, name: 'المالك الأول',  username: 'owner1' },
+    { id: 8, name: 'المالك الثاني', username: 'owner2' },
+  ],
 }
 
-function login() {
+// ===== STATE =====
+const selectedRole = ref('supervisor')
+const selectedUser = ref('')
+const password = ref('')
+const error = ref('')
+const loading = ref(false)
+const apiReady = ref(false) // هل الـ API ردّ
+
+// قائمة الـ roles — تبدأ من static
+const availableRoles = ref<Role[]>(STATIC_ROLES)
+
+// قائمة المستخدمين — تبدأ من static
+const usersList = ref<UserByType[]>(STATIC_USERS['supervisor'] ?? [])
+
+const filteredUsers = computed(() => usersList.value)
+
+// ===== MOUNT — جرّب الـ API في الخلفية =====
+onMounted(async () => {
+  // جرّب جلب الـ roles من API
+  try {
+    const roles = await auth.roles()
+    if (roles.length) availableRoles.value = roles
+    apiReady.value = true
+  } catch {
+    // نكمل بالـ static
+  }
+
+  // جرّب جلب المستخدمين
+  await fetchUsersFromApi()
+})
+
+async function fetchUsersFromApi() {
+  try {
+    const users = await auth.usersByType(selectedRole.value)
+    if (users.length) usersList.value = users
+  } catch {
+    // نكمل بالـ static
+    usersList.value = STATIC_USERS[selectedRole.value] ?? []
+  }
+}
+
+function selectRole(role: string) {
+  selectedRole.value = role
+  selectedUser.value = ''
+  password.value = ''
+  error.value = ''
+  // اعرض static فوراً
+  usersList.value = STATIC_USERS[role] ?? []
+  // ثم حاول الـ API
+  fetchUsersFromApi()
+}
+
+// ===== LOGIN =====
+async function login() {
   error.value = ''
   if (!selectedUser.value) { error.value = 'الرجاء اختيار الاسم'; return }
+  if (!password.value)      { error.value = 'الرجاء إدخال كلمة المرور'; return }
 
-  const list = users[selectedRole.value]
-  const user = list.find(u => u.id === selectedUser.value)
-  if (!user) { error.value = 'المستخدم غير موجود'; return }
-  if (user.password !== password.value) { error.value = 'كلمة المرور غير صحيحة'; return }
-
-  // حفظ الجلسة
-  localStorage.setItem('tahsilat-session', JSON.stringify({ role: selectedRole.value, id: user.id, name: user.name }))
-
-  if (selectedRole.value === 'supervisor') {
-    navigateTo('/supervisor')
-  } else if (selectedRole.value === 'collector') {
-    navigateTo('/collector')
-  } else {
-    navigateTo('/owner')
+  loading.value = true
+  try {
+    const user = await doLogin(selectedUser.value, password.value, selectedRole.value)
+    if (user.type === 'supervisor') {
+      navigateTo('/supervisor')
+    } else if (user.type === 'collector') {
+      navigateTo('/collector')
+    } else if (user.type === 'owner') {
+      navigateTo('/owner')
+    } else {
+      navigateTo('/')
+    }
+  } catch (e: any) {
+    const data = e?.data
+    if (data?.message) {
+      error.value = data.message
+    } else if (data?.errors) {
+      const firstKey = Object.keys(data.errors)[0]
+      error.value = Array.isArray(data.errors[firstKey]) ? data.errors[firstKey][0] : data.errors[firstKey]
+    } else {
+      error.value = 'تعذّر تسجيل الدخول. تأكد من تشغيل الخادم.'
+      console.log(data)
+    }
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -217,6 +259,7 @@ function login() {
   font-weight: 700;
   font-size: 14px;
   transition: .15s;
+  cursor: pointer;
 }
 .role-tab.active {
   background: #3A3733;
@@ -252,6 +295,9 @@ function login() {
   border-color: #E1712F;
   background: #fff;
 }
+.field select:disabled {
+  opacity: .6;
+}
 
 /* Login Button */
 .btn-login {
@@ -267,8 +313,12 @@ function login() {
   transition: .15s;
   margin-top: 4px;
 }
-.btn-login:hover {
+.btn-login:hover:not(:disabled) {
   background: #B85423;
+}
+.btn-login:disabled {
+  opacity: .6;
+  cursor: default;
 }
 
 .btn-portal {
