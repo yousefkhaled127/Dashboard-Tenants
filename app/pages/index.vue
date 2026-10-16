@@ -1,5 +1,17 @@
 <template>
   <div class="login-screen">
+
+    <!-- Dark mode toggle -->
+    <button class="theme-fab" :title="isDark ? 'الوضع الفاتح' : 'الوضع الداكن'" @click="toggleTheme">
+      <svg v-if="isDark" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/>
+      </svg>
+      <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+      </svg>
+    </button>
+
     <div class="login-card">
 
       <!-- Logo + Title -->
@@ -35,14 +47,33 @@
         </button>
       </div>
 
-      <!-- Name -->
-      <div class="field">
-        <label>الاسم</label>
-        <select v-model="selectedUser">
-          <option value="">{{ filteredUsers.length ? 'اختر الاسم' : 'لا توجد نتائج' }}</option>
-          <option v-for="u in filteredUsers" :key="u.id" :value="u.username">{{ u.name }}</option>
-        </select>
-      </div>
+      <!-- Owner: login by national ID -->
+      <template v-if="selectedRole === 'owner'">
+        <div class="field">
+          <label>رقم الهوية</label>
+          <input
+            v-model="nationalId"
+            inputmode="numeric"
+            placeholder="رقم الهوية المسجل لدى المؤسسة"
+            @keydown.enter="login"
+          />
+        </div>
+      </template>
+
+      <!-- Supervisor / Collector: dropdown -->
+      <template v-else>
+        <div class="field">
+          <label>الاسم</label>
+          <select v-model="selectedUserId">
+            <option :value="null">
+              {{ loadingUsers ? 'جارٍ التحميل...' : filteredUsers.length ? 'اختر الاسم' : 'لا توجد نتائج' }}
+            </option>
+            <option v-for="u in filteredUsers" :key="u.id" :value="u.id">
+              {{ u.display_name || u.name_with_type || u.name }}
+            </option>
+          </select>
+        </div>
+      </template>
 
       <!-- Password -->
       <div class="field">
@@ -72,8 +103,24 @@ import { useAuth } from '~/composables/useAuth'
 const { auth } = useApi()
 const { login: doLogin } = useAuth()
 
-// ===== FALLBACK STATIC DATA =====
-// تظهر فوراً حتى لو الـ API مش شغال
+// ===== DARK MODE =====
+const isDark = ref(false)
+
+onMounted(() => {
+  // اقرأ الوضع الحالي من الـ html element
+  isDark.value = document.documentElement.getAttribute('data-theme') === 'dark'
+})
+
+function toggleTheme() {
+  isDark.value = !isDark.value
+  const html = document.documentElement
+  html.classList.add('theme-anim')
+  html.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
+  try { localStorage.setItem('tahsilat-theme', isDark.value ? 'dark' : 'light') } catch {}
+  setTimeout(() => html.classList.remove('theme-anim'), 380)
+}
+
+// ===== STATIC FALLBACK DATA =====
 const STATIC_ROLES: Role[] = [
   { value: 'supervisor', label: 'مشرف' },
   { value: 'collector',  label: 'محصل' },
@@ -82,105 +129,136 @@ const STATIC_ROLES: Role[] = [
 
 const STATIC_USERS: Record<string, UserByType[]> = {
   supervisor: [
-    { id: 1, name: 'المشرف الأول',  username: 'supervisor1' },
-    { id: 2, name: 'المشرف الثاني', username: 'supervisor2' },
-    { id: 3, name: 'المشرف الثالث', username: 'supervisor3' },
+    { id: 1, value: 1, name: 'المشرف العام', username: 'admin', type: 'general_manager', type_label: 'مشرف عام', display_name: 'المشرف العام – مشرف عام' },
+    { id: 2, value: 2, name: 'مشرف العقارات', username: 'realestate_supervisor', type: 'real_estate_supervisor', type_label: 'مشرف عقارات', display_name: 'مشرف العقارات – مشرف عقارات' },
+    { id: 3, value: 3, name: 'مشرف التحصيل والمتابعة', username: 'collection_supervisor', type: 'collection_supervisor', type_label: 'مشرف تحصيل ومتابعة', display_name: 'مشرف التحصيل والمتابعة – مشرف تحصيل ومتابعة' },
+    { id: 4, value: 4, name: 'مشرف الصيانة', username: 'maint1', type: 'maintenance_supervisor', type_label: 'مشرف صيانة', display_name: 'مشرف الصيانة – مشرف صيانة' },
   ],
   collector: [
-    { id: 4, name: 'المحصل الأول',  username: 'collector1' },
-    { id: 5, name: 'المحصل الثاني', username: 'collector2' },
-    { id: 6, name: 'المحصل الثالث', username: 'collector3' },
+    { id: 6, value: 6, name: 'المحصل الأول',  username: 'collector_1', type: 'collector', type_label: 'محصل', display_name: 'المحصل الأول' },
+    { id: 7, value: 7, name: 'المحصل الثاني', username: 'collector_2', type: 'collector', type_label: 'محصل', display_name: 'المحصل الثاني' },
   ],
-  owner: [
-    { id: 7, name: 'المالك الأول',  username: 'owner1' },
-    { id: 8, name: 'المالك الثاني', username: 'owner2' },
-  ],
+  owner: [],
 }
 
 // ===== STATE =====
-const selectedRole = ref('supervisor')
-const selectedUser = ref('')
-const password = ref('')
-const error = ref('')
-const loading = ref(false)
-const apiReady = ref(false) // هل الـ API ردّ
+const selectedRole   = ref('supervisor')
+const selectedUserId = ref<number | null>(null)
+const nationalId     = ref('')
+const password       = ref('')
+const error          = ref('')
+const loading        = ref(false)
+const loadingUsers   = ref(false)
+const usersList      = ref<UserByType[]>(STATIC_USERS['supervisor'])
 
-// قائمة الـ roles — تبدأ من static
 const availableRoles = ref<Role[]>(STATIC_ROLES)
+const filteredUsers  = computed(() => usersList.value)
 
-// قائمة المستخدمين — تبدأ من static
-const usersList = ref<UserByType[]>(STATIC_USERS['supervisor'] ?? [])
-
-const filteredUsers = computed(() => usersList.value)
-
-// ===== MOUNT — جرّب الـ API في الخلفية =====
+// ===== INIT =====
 onMounted(async () => {
-  // جرّب جلب الـ roles من API
+  // طبّق الثيم المحفوظ
+  try {
+    const saved = localStorage.getItem('tahsilat-theme')
+    if (saved === 'dark' || saved === 'light') {
+      isDark.value = saved === 'dark'
+      document.documentElement.setAttribute('data-theme', saved)
+    }
+  } catch {}
+
+  // جرّب الـ API في الخلفية
   try {
     const roles = await auth.roles()
     if (roles.length) availableRoles.value = roles
-    apiReady.value = true
-  } catch {
-    // نكمل بالـ static
-  }
-
-  // جرّب جلب المستخدمين
-  await fetchUsersFromApi()
+  } catch {}
+  await fetchUsers()
 })
 
-async function fetchUsersFromApi() {
+async function fetchUsers() {
+  if (selectedRole.value === 'owner') { usersList.value = []; return }
+  loadingUsers.value = true
+  // عرض static فوراً
+  usersList.value = STATIC_USERS[selectedRole.value] ?? []
   try {
     const users = await auth.usersByType(selectedRole.value)
     if (users.length) usersList.value = users
-  } catch {
-    // نكمل بالـ static
-    usersList.value = STATIC_USERS[selectedRole.value] ?? []
-  }
+  } catch {}
+  loadingUsers.value = false
 }
 
 function selectRole(role: string) {
-  selectedRole.value = role
-  selectedUser.value = ''
-  password.value = ''
-  error.value = ''
-  // اعرض static فوراً
+  selectedRole.value   = role
+  selectedUserId.value = null
+  nationalId.value     = ''
+  password.value       = ''
+  error.value          = ''
   usersList.value = STATIC_USERS[role] ?? []
-  // ثم حاول الـ API
-  fetchUsersFromApi()
+  fetchUsers()
 }
 
 // ===== LOGIN =====
 async function login() {
   error.value = ''
-  if (!selectedUser.value) { error.value = 'الرجاء اختيار الاسم'; return }
-  if (!password.value)      { error.value = 'الرجاء إدخال كلمة المرور'; return }
+
+  // Owner login uses national_id — we fetch the user list from API first
+  if (selectedRole.value === 'owner') {
+    if (!nationalId.value.trim()) { error.value = 'الرجاء إدخال رقم الهوية'; return }
+    if (!password.value)           { error.value = 'الرجاء إدخال كلمة المرور'; return }
+    loading.value = true
+    try {
+      // جلب قائمة الملاك وإيجاد المطابق لرقم الهوية
+      let ownerUsers: UserByType[] = []
+      try {
+        ownerUsers = await auth.usersByType('owner')
+      } catch {}
+      const matched = ownerUsers.find(u => u.username === `owner_${nationalId.value.trim()}` || String(u.id) === nationalId.value.trim())
+      if (!matched) {
+        // نحاول login مباشرة بـ id = 0 وسيرجع خطأ من الـ API
+        error.value = 'رقم الهوية غير مسجل لدى المؤسسة'
+        loading.value = false
+        return
+      }
+      const user = await doLogin(matched.id, password.value, 'owner')
+      navigateTo('/owner')
+    } catch (e: any) {
+      error.value = extractError(e)
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
+  // Supervisor / Collector
+  if (!selectedUserId.value) { error.value = 'الرجاء اختيار الاسم'; return }
+  if (!password.value)        { error.value = 'الرجاء إدخال كلمة المرور'; return }
 
   loading.value = true
   try {
-    const user = await doLogin(selectedUser.value, password.value, selectedRole.value)
-    if (user.type === 'supervisor') {
-      navigateTo('/supervisor')
-    } else if (user.type === 'collector') {
-      navigateTo('/collector')
-    } else if (user.type === 'owner') {
+    const user = await doLogin(selectedUserId.value, password.value, selectedRole.value)
+    const t = user.type
+    if (t === 'owner') {
       navigateTo('/owner')
+    } else if (t === 'collector') {
+      navigateTo('/collector')
     } else {
-      navigateTo('/')
+      // all supervisor subtypes → /supervisor
+      navigateTo('/supervisor')
     }
   } catch (e: any) {
-    const data = e?.data
-    if (data?.message) {
-      error.value = data.message
-    } else if (data?.errors) {
-      const firstKey = Object.keys(data.errors)[0]
-      error.value = Array.isArray(data.errors[firstKey]) ? data.errors[firstKey][0] : data.errors[firstKey]
-    } else {
-      error.value = 'تعذّر تسجيل الدخول. تأكد من تشغيل الخادم.'
-      console.log(data)
-    }
+    error.value = extractError(e)
   } finally {
     loading.value = false
   }
+}
+
+function extractError(e: any): string {
+  const data = e?.data
+  if (data?.message)  return data.message
+  if (data?.errors) {
+    const key = Object.keys(data.errors)[0]
+    const val = data.errors[key]
+    return Array.isArray(val) ? val[0] : val
+  }
+  return 'تعذّر تسجيل الدخول. تأكد من تشغيل الخادم.'
 }
 </script>
 
@@ -193,13 +271,13 @@ async function login() {
   background:
     radial-gradient(circle at 15% 15%, rgba(225,113,47,.08), transparent 40%),
     radial-gradient(circle at 85% 85%, rgba(58,55,51,.06), transparent 40%),
-    #F3EFE8;
+    var(--bg);
   padding: 24px;
 }
 
 .login-card {
-  background: #fff;
-  border: 1px solid #E6DFD3;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 18px;
   width: 100%;
   max-width: 420px;
@@ -207,30 +285,14 @@ async function login() {
   box-shadow: 0 20px 50px -25px rgba(46,43,39,.35);
 }
 
-.login-head {
-  text-align: center;
-  margin-bottom: 26px;
-}
-.logo-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-.login-head h1 {
-  font-size: 18px;
-  margin: 0 0 4px;
-  color: #3A3733;
-  font-weight: 800;
-}
-.login-head p {
-  margin: 0;
-  color: #8A8479;
-  font-size: 13px;
-}
+.login-head { text-align: center; margin-bottom: 26px; }
+.logo-wrap  { display: flex; justify-content: center; margin-bottom: 12px; }
+.login-head h1 { font-size: 18px; margin: 0 0 4px; color: var(--charcoal); font-weight: 800; }
+.login-head p  { margin: 0; color: var(--muted); font-size: 13px; }
 
 .login-error {
-  background: #F7E7E2;
-  color: #B3452F;
+  background: var(--danger-tint);
+  color: var(--danger);
   border-radius: 9px;
   padding: 10px 12px;
   font-size: 13px;
@@ -244,7 +306,7 @@ async function login() {
   display: flex;
   gap: 8px;
   margin-bottom: 20px;
-  background: #F3EFE8;
+  background: var(--bg);
   padding: 5px;
   border-radius: 12px;
 }
@@ -255,25 +317,20 @@ async function login() {
   border-radius: 9px;
   border: none;
   background: transparent;
-  color: #8A8479;
+  color: var(--muted);
   font-weight: 700;
   font-size: 14px;
   transition: .15s;
   cursor: pointer;
 }
-.role-tab.active {
-  background: #3A3733;
-  color: #fff;
-}
+.role-tab.active { background: var(--charcoal); color: #fff; }
 
 /* Fields */
-.field {
-  margin-bottom: 14px;
-}
+.field { margin-bottom: 14px; }
 .field label {
   display: block;
   font-size: 13px;
-  color: #8A8479;
+  color: var(--muted);
   margin-bottom: 6px;
   font-weight: 700;
 }
@@ -282,30 +339,25 @@ async function login() {
   width: 100%;
   padding: 11px 13px;
   border-radius: 10px;
-  border: 1.5px solid #E6DFD3;
-  background: #F3EFE8;
-  color: #2E2B27;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
   outline: none;
   transition: .15s;
   font-family: inherit;
   font-size: 15px;
 }
 .field input:focus,
-.field select:focus {
-  border-color: #E1712F;
-  background: #fff;
-}
-.field select:disabled {
-  opacity: .6;
-}
+.field select:focus  { border-color: var(--orange); background: var(--surface); }
+.field select:disabled { opacity: .6; }
 
-/* Login Button */
+/* Buttons */
 .btn-login {
   width: 100%;
   padding: 13px;
   border: none;
   border-radius: 10px;
-  background: #E1712F;
+  background: var(--orange);
   color: #fff;
   font-weight: 800;
   font-size: 15px;
@@ -313,34 +365,25 @@ async function login() {
   transition: .15s;
   margin-top: 4px;
 }
-.btn-login:hover:not(:disabled) {
-  background: #B85423;
-}
-.btn-login:disabled {
-  opacity: .6;
-  cursor: default;
-}
+.btn-login:hover:not(:disabled) { background: var(--orange-dark); }
+.btn-login:disabled { opacity: .6; cursor: default; }
 
 .btn-portal {
   width: 100%;
   padding: 13px;
-  border: 1.5px solid #E6DFD3;
+  border: 1.5px solid var(--line);
   border-radius: 10px;
   background: transparent;
-  color: #3A3733;
+  color: var(--charcoal);
   font-weight: 800;
   font-size: 14.5px;
   cursor: pointer;
   transition: .15s;
   margin-top: 10px;
 }
-.btn-portal:hover {
-  border-color: #3A3733;
-}
+.btn-portal:hover { border-color: var(--charcoal); }
 
 @media (max-width: 480px) {
-  .login-card {
-    padding: 26px 18px 22px;
-  }
+  .login-card { padding: 26px 18px 22px; }
 }
 </style>

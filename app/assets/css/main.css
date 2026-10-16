@@ -1,17 +1,64 @@
+/* ============================================================
+   CSS Variables — Light mode (default)
+   ============================================================ */
 :root {
-  --orange: #E1712F;
-  --orange-dark: #B85423;
-  --orange-tint: #FBE9DC;
-  --ink: #2E2B27;
-  --charcoal: #3A3733;
-  --muted: #8A8479;
-  --bg: #F3EFE8;
-  --surface: #FFFFFF;
-  --line: #E6DFD3;
-  --danger: #B3452F;
-  --danger-tint: #F7E7E2;
+  --orange:       #E1712F;
+  --orange-dark:  #B85423;
+  --orange-tint:  #FBE9DC;
+  --ink:          #2E2B27;
+  --charcoal:     #3A3733;
+  --muted:        #8A8479;
+  --bg:           #F3EFE8;
+  --surface:      #FFFFFF;
+  --line:         #E6DFD3;
+  --danger:       #B3452F;
+  --danger-tint:  #F7E7E2;
+  --warning:      #B8791E;
+  --warning-tint: #FBEEDA;
+  --success:      #3F7D52;
+  --success-tint: #E4F1E7;
+  /* sidebar deep background */
+  --sidebar-bg:   #3A3733;
+  color-scheme: light;
 }
 
+/* ============================================================
+   Dark mode — activated by [data-theme="dark"] on <html>
+   ============================================================ */
+[data-theme="dark"] {
+  --orange:       #E8783A;
+  --orange-dark:  #F29A62;
+  --orange-tint:  #3B2A1F;
+  --ink:          #ECE6DD;
+  --charcoal:     #F1ECE4;
+  --muted:        #A39B90;
+  --bg:           #141210;
+  --surface:      #1F1C19;
+  --line:         #35302A;
+  --danger:       #EC8670;
+  --danger-tint:  #3B2019;
+  --warning:      #E6AE55;
+  --warning-tint: #3A2D16;
+  --success:      #6FC287;
+  --success-tint: #1C3024;
+  --sidebar-bg:   #0E0D0B;
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Smooth theme transition
+   ============================================================ */
+html.theme-anim,
+html.theme-anim * {
+  transition:
+    background-color .25s ease,
+    border-color     .25s ease,
+    color            .2s  ease !important;
+}
+
+/* ============================================================
+   Reset & base
+   ============================================================ */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 
@@ -21,31 +68,96 @@ body {
   color: var(--ink);
   min-height: 100vh;
   direction: rtl;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
-input, select, button {
-  font-family: inherit;
-  font-size: 15px;
-}
-
+input, select, button, textarea { font-family: inherit; font-size: 15px; }
 button { cursor: pointer; }
+a { color: inherit; }
+::selection { background: var(--orange-tint); }
 
+/* ============================================================
+   Dark-mode sidebar overrides  (used by layout .vue files)
+   ============================================================ */
+[data-theme="dark"] .sidebar,
+[data-theme="dark"] .mobile-topbar {
+  background: var(--sidebar-bg);
+}
+
+/* ============================================================
+   Theme toggle button (floating + sidebar)
+   ============================================================ */
+.theme-fab {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 90;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--charcoal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px -6px rgba(0,0,0,.35);
+  transition: color .15s, transform .15s;
+  cursor: pointer;
+}
+.theme-fab:hover { color: var(--orange); transform: translateY(-1px); }
+
+/* Sidebar theme square button */
+.theme-sq {
+  width: 38px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 9px;
+  background: rgba(255,255,255,.08);
+  color: #F3C7A6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: .15s;
+  cursor: pointer;
+  height: 38px;
+}
+.theme-sq:hover { background: rgba(255,255,255,.16); color: #fff; }
+
+/* ============================================================
+   Print
+   ============================================================ */
 @media print {
+  /* always print in light */
+  [data-theme="dark"] {
+    --orange:       #E1712F;
+    --orange-dark:  #B85423;
+    --orange-tint:  #FBE9DC;
+    --ink:          #2E2B27;
+    --charcoal:     #3A3733;
+    --muted:        #8A8479;
+    --bg:           #FFFFFF;
+    --surface:      #FFFFFF;
+    --line:         #E6DFD3;
+    --danger:       #B3452F;
+    --danger-tint:  #F7E7E2;
+    --warning:      #B8791E;
+    --warning-tint: #FBEEDA;
+    --success:      #3F7D52;
+    --success-tint: #E4F1E7;
+  }
   .sidebar,
   .mobile-topbar,
   .sync-box,
   .logout-btn,
-  .version-tag {
+  .version-tag,
+  .theme-fab,
+  .theme-sq,
+  .no-print {
     display: none !important;
   }
-  .shell {
-    display: block !important;
-  }
-  .main {
-    padding: 0 !important;
-    max-width: 100% !important;
-  }
-  body {
-    background: #fff !important;
-  }
+  .shell  { display: block !important; }
+  .main   { padding: 0 !important; max-width: 100% !important; }
+  body    { background: #fff !important; }
 }

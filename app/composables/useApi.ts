@@ -1,18 +1,33 @@
 // ============================================================
-// useApi — API client موحّد لكل الـ endpoints
+// useApi — API client موحّد لكل الـ endpoints (v2)
 // يعتمد على token في cookie + base URL من runtimeConfig
 // ============================================================
 
-// ==================== TYPES ====================
+// ==================== AUTH TYPES ====================
 export interface Role { value: string; label: string }
-export interface UserByType { id: number; name: string; username: string }
+
+export interface UserByType {
+  id: number
+  value: number
+  name: string
+  username: string
+  type: string
+  type_label: string
+  type_description?: string
+  display_name?: string
+  name_with_type?: string
+  label?: string
+}
 
 export interface AuthUser {
   id: number
   name: string
   username: string
+  email?: string
+  phone?: string
   type: string
   type_label: string
+  is_active?: boolean
 }
 
 export interface LoginResponse {
@@ -21,9 +36,11 @@ export interface LoginResponse {
   user: AuthUser
 }
 
+// ==================== SHARED REFS ====================
 export interface CollectorRef { id: number; name: string }
 export interface OwnerRef { id: number; name: string }
 
+// ==================== TENANT TYPES ====================
 export interface TenantListItem {
   id: number
   user_id?: number
@@ -110,15 +127,10 @@ export interface TenantDetail {
   notes_list: NoteItem[]
 }
 
+// ==================== PAYMENT TYPES ====================
 export interface PaymentApprovalItem {
   id: number
-  tenant: {
-    id: number
-    tenant_number: string
-    property_unit: string
-    name: string
-    phone: string
-  }
+  tenant: { id: number; tenant_number: string; property_unit: string; name: string; phone: string }
   payment_date: string
   payment_date_formatted: string
   payment_method: string
@@ -130,6 +142,7 @@ export interface PaymentApprovalItem {
   collector?: CollectorRef
   rejection_reason?: string
   notes?: string
+  attachment_url?: string | null
 }
 
 export interface PaymentApprovalTabs {
@@ -143,13 +156,7 @@ export interface PaymentApprovalTabs {
 export interface OwnerPaymentItem {
   id: number
   owner: OwnerRef
-  tenant: {
-    id: number
-    tenant_number: string
-    property_unit: string
-    name: string
-    phone: string
-  }
+  tenant: { id: number; tenant_number: string; property_unit: string; name: string; phone: string }
   collector?: CollectorRef
   payment_method: string
   receipt_number: string | null
@@ -160,17 +167,12 @@ export interface OwnerPaymentItem {
   status: string
   status_label: string
   notes?: string
+  attachment_url?: string | null
 }
 
 export interface CollectorPaymentItem {
   id: number
-  tenant: {
-    id: number
-    tenant_number: string
-    property_unit: string
-    name: string
-    phone: string
-  }
+  tenant: { id: number; tenant_number: string; property_unit: string; name: string; phone: string }
   payment_date: string
   payment_date_formatted: string
   payment_method: string
@@ -192,150 +194,99 @@ export interface ImportResult {
   errors: string[]
 }
 
-interface Pagination {
-  total: number
-  per_page: number
-  current_page: number
-  last_page: number
+// ==================== USER MANAGEMENT TYPES ====================
+export interface SupervisorUser {
+  id: number
+  name: string
+  username: string
+  email?: string
+  phone?: string
+  national_id?: string
+  type: string
+  type_label: string
+  type_description?: string
+  is_active: boolean
+  is_current_user?: boolean
+  tenants_count?: number | null
+  collected_this_month?: number | null
+  target_this_month?: number | null
+  properties_count?: number | null
+  created_at?: string
 }
 
-// ==================== COMPOSABLE ====================
-export function useApi() {
-  const config = useRuntimeConfig()
-  const base = config.public.apiBase
-  const token = useCookie<string>('tahsilat-token', {
-    maxAge: 60 * 60 * 24 * 7,
-    sameSite: 'lax',
-  })
+export interface CollectorUser {
+  id: number
+  name: string
+  username: string
+  email?: string
+  phone?: string
+  national_id?: string
+  type: string
+  type_label: string
+  type_description?: string
+  is_active: boolean
+  tenants_count?: number
+  collected_this_month?: number
+  target_this_month?: number
+  created_at?: string
+}
 
-  /** Low-level request wrapper — unwraps `{ success, message, data }` */
-  async function req<T = any>(url: string, opts: Record<string, any> = {}): Promise<T> {
-    const res = await $fetch<{ success: boolean; message: string; data: T }>(base + url, {
-      ...opts,
-      headers: {
-        Accept: 'application/json',
-        ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
-        ...opts.headers,
-      },
-    })
-    return res.data
-  }
+export interface OwnerUser {
+  id: number
+  name: string
+  username: string
+  email?: string
+  phone?: string
+  national_id?: string
+  type: string
+  type_label: string
+  type_description?: string
+  is_active: boolean
+  properties_count?: number
+  tenants_count?: number
+  created_at?: string
+}
 
-  // ---------- AUTH ----------
-  const auth = {
-    roles: () => req<Role[]>('/auth/roles'),
-    usersByType: (type: string) => req<UserByType[]>(`/auth/users-by-type?type=${type}`),
-    login: (body: { login: string; password: string; type: string }) =>
-      req<LoginResponse>('/auth/login', { method: 'POST', body }),
-    me: () => req<AuthUser>('/auth/me'),
-    logout: () => req('/auth/logout', { method: 'POST' }),
-  }
+export interface UserTypeInfo {
+  value: string
+  label: string
+  description: string
+}
 
-  // ---------- SUPERVISOR ----------
-  const supervisor = {
-    tenants: (params: { search?: string; collector_id?: number; period?: string; page?: number } = {}) => {
-      const q = new URLSearchParams()
-      if (params.search) q.set('search', params.search)
-      if (params.collector_id) q.set('collector_id', String(params.collector_id))
-      if (params.period) q.set('period', params.period)
-      if (params.page) q.set('page', String(params.page))
-      return req<{ tenants: TenantListItem[]; pagination: Pagination; period: string }>(`/supervisor/tenants?${q}`)
-    },
-    showTenant: (id: number, period?: string) => {
-      const q = period ? `?period=${period}` : ''
-      return req<TenantDetail>(`/supervisor/tenants/${id}${q}`)
-    },
-    createTenant: (body: Record<string, any>) => req<TenantDetail>('/supervisor/tenants', { method: 'POST', body }),
-    updateTenant: (id: number, body: Record<string, any>) => req<TenantInfo>(`/supervisor/tenants/${id}`, { method: 'PUT', body }),
-    addPromise: (id: number, body: { promise_date: string; note: string }) =>
-      req<PromiseItem>(`/supervisor/tenants/${id}/promises`, { method: 'POST', body }),
-    addNote: (id: number, body: { content: string }) =>
-      req<NoteItem>(`/supervisor/tenants/${id}/notes`, { method: 'POST', body }),
-    addPayment: (id: number, body: Record<string, any>) =>
-      req<PaymentLedgerItem>(`/supervisor/tenants/${id}/payments`, { method: 'POST', body }),
-    importTemplate: () => `${base}/supervisor/tenants/import/template`,
-    importExcel: (formData: FormData) =>
-      req<ImportResult>('/supervisor/tenants/import', { method: 'POST', body: formData }),
-    approvals: (params: { tab?: string; search?: string; page?: number } = {}) => {
-      const q = new URLSearchParams()
-      if (params.tab) q.set('tab', params.tab)
-      if (params.search) q.set('search', params.search)
-      if (params.page) q.set('page', String(params.page))
-      return req<{ payments: PaymentApprovalItem[]; pagination: Pagination; tabs: PaymentApprovalTabs }>(`/supervisor/payments/approvals?${q}`)
-    },
-    approvePayment: (id: number) => req(`/supervisor/payments/approvals/${id}/approve`, { method: 'POST' }),
-    rejectPayment: (id: number, body: { rejection_reason: string }) =>
-      req(`/supervisor/payments/approvals/${id}/reject`, { method: 'POST', body }),
-    editPayment: (id: number, body: Record<string, any>) =>
-      req(`/supervisor/payments/approvals/${id}`, { method: 'PUT', body }),
-    deletePayment: (id: number) => req(`/supervisor/payments/approvals/${id}`, { method: 'DELETE' }),
-    ownerPayments: (params: { search?: string; period?: string; page?: number } = {}) => {
-      const q = new URLSearchParams()
-      if (params.search) q.set('search', params.search)
-      if (params.period) q.set('period', params.period)
-      if (params.page) q.set('page', String(params.page))
-      return req<{ payments: OwnerPaymentItem[]; pagination: Pagination; statistics: any }>(`/supervisor/owner-payments?${q}`)
-    },
-    updateOwnerPaymentNotes: (id: number, body: { notes: string }) =>
-      req(`/supervisor/owner-payments/${id}/notes`, { method: 'PUT', body }),
-  }
+export interface UserStatistics {
+  all_count: number
+  active_count: number
+  inactive_count: number
+  general_manager_count?: number
+  real_estate_count?: number
+  collection_count?: number
+  maintenance_count?: number
+}
 
-  // ---------- COLLECTOR ----------
-  const collector = {
-    tenants: (params: { search?: string; period?: string; page?: number } = {}) => {
-      const q = new URLSearchParams()
-      if (params.search) q.set('search', params.search)
-      if (params.period) q.set('period', params.period)
-      if (params.page) q.set('page', String(params.page))
-      return req<{ tenants: TenantListItem[]; pagination: Pagination; period: string }>(`/collector/tenants?${q}`)
-    },
-    showTenant: (id: number, period?: string) => {
-      const q = period ? `?period=${period}` : ''
-      return req<TenantDetail>(`/collector/tenants/${id}${q}`)
-    },
-    addPromise: (id: number, body: { promise_date: string; note: string }) =>
-      req<PromiseItem>(`/collector/tenants/${id}/promises`, { method: 'POST', body }),
-    addNote: (id: number, body: { content: string }) =>
-      req<NoteItem>(`/collector/tenants/${id}/notes`, { method: 'POST', body }),
-    addPaymentForTenant: (id: number, body: Record<string, any>) =>
-      req<PaymentLedgerItem>(`/collector/tenants/${id}/payments`, { method: 'POST', body }),
-    payments: (params: { search?: string; period?: string; status?: string; page?: number } = {}) => {
-      const q = new URLSearchParams()
-      if (params.search) q.set('search', params.search)
-      if (params.period) q.set('period', params.period)
-      if (params.status) q.set('status', params.status)
-      if (params.page) q.set('page', String(params.page))
-      return req<{ payments: CollectorPaymentItem[]; pagination: Pagination; statistics: any }>(`/collector/payments?${q}`)
-    },
-    createPayment: (formData: FormData) =>
-      req<CollectorPaymentItem>('/collector/payments', { method: 'POST', body: formData }),
-  }
+export interface TabsCounts {
+  supervisors: number
+  collectors: number
+  owners: number
+}
 
-  // ---------- OWNER ----------
-  const owner = {
-    overview: (period?: string) => {
-      const q = period ? `?period=${period}` : ''
-      return req<OwnerOverviewData>(`/owner/overview${q}`)
-    },
-    payments: (params: { search?: string; period?: string; status?: string; page?: number } = {}) => {
-      const q = new URLSearchParams()
-      if (params.search) q.set('search', params.search)
-      if (params.period) q.set('period', params.period)
-      if (params.status) q.set('status', params.status)
-      if (params.page)   q.set('page', String(params.page))
-      return req<{ payments: OwnerPaymentItem[]; pagination: Pagination; statistics: OwnerPaymentStats }>(`/owner/payments?${q}`)
-    },
-    getPaymentNotes: (id: number) =>
-      req<{ payment: { id: number; property_unit: string; amount: number; period: string }; notes: OwnerPaymentNote[] }>(`/owner/payments/${id}/notes`),
-    addPaymentNote: (id: number, body: { content: string }) =>
-      req<OwnerPaymentNote>(`/owner/payments/${id}/notes`, { method: 'POST', body }),
-    properties: (period?: string) => {
-      const q = period ? `?period=${period}` : ''
-      return req<OwnerPropertiesData>(`/owner/properties${q}`)
-    },
-  }
+// ==================== NOTICE TYPES ====================
+export interface NoticeRequest {
+  id: number
+  tenant: { id: number; name: string; phone: string; tenant_number: string; property_unit: string }
+  collector: CollectorRef
+  reason: string
+  status: string
+  status_label: string
+  notice_content?: string | null
+  notice_file_url?: string | null
+  delivery_proof_url?: string | null
+  created_at?: string
+}
 
-  return { auth, supervisor, collector, owner, base, token }
+export interface NoticeStatistics {
+  new_requests_count: number
+  pending_approval_count: number
+  all_count: number
 }
 
 // ==================== OWNER TYPES ====================
@@ -431,4 +382,265 @@ export interface OwnerPropertiesData {
   properties: OwnerPropertySummary[]
   tenants: OwnerPropertyTenant[]
   statistics: OwnerPropertiesStats
+}
+
+// ==================== PAGINATION ====================
+interface Pagination {
+  total: number
+  per_page: number
+  current_page: number
+  last_page: number
+}
+
+// ==================== COMPOSABLE ====================
+export function useApi() {
+  const config = useRuntimeConfig()
+  const base = config.public.apiBase
+  const token = useCookie<string>('tahsilat-token', {
+    maxAge: 60 * 60 * 24 * 7,
+    sameSite: 'lax',
+  })
+
+  /** Low-level request wrapper — unwraps `{ success, message, data }` */
+  async function req<T = any>(url: string, opts: Record<string, any> = {}): Promise<T> {
+    const res = await $fetch<{ success: boolean; message: string; data: T }>(base + url, {
+      ...opts,
+      headers: {
+        Accept: 'application/json',
+        ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
+        ...opts.headers,
+      },
+    })
+    return res.data
+  }
+
+  // ---------- AUTH ----------
+  const auth = {
+    roles: () => req<Role[]>('/auth/roles'),
+
+    usersByType: (type: string) =>
+      req<UserByType[]>(`/auth/users-by-type?type=${type}`),
+
+    /** v2: body uses user_id (number) + device_name */
+    login: (body: { user_id: number; password: string; type: string; device_name?: string }) =>
+      req<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: { device_name: 'web', ...body },
+      }),
+
+    me: () => req<AuthUser>('/auth/me'),
+    logout: () => req('/auth/logout', { method: 'POST' }),
+  }
+
+  // ---------- GENERAL MANAGER (supervisor module — v2 prefix) ----------
+  const manager = {
+    // Tenants
+    tenants: (params: { search?: string; collector_id?: number; period?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search)       q.set('search', params.search)
+      if (params.collector_id) q.set('collector_id', String(params.collector_id))
+      if (params.period)       q.set('period', params.period)
+      if (params.page)         q.set('page', String(params.page))
+      return req<{ tenants: TenantListItem[]; pagination: Pagination; period: string }>(`/general-manager/tenants?${q}`)
+    },
+    showTenant: (id: number, period?: string) =>
+      req<TenantDetail>(`/general-manager/tenants/${id}${period ? `?period=${period}` : ''}`),
+    createTenant: (body: Record<string, any>) =>
+      req<TenantDetail>('/general-manager/tenants', { method: 'POST', body }),
+    updateTenant: (id: number, body: Record<string, any>) =>
+      req<TenantInfo>(`/general-manager/tenants/${id}`, { method: 'PUT', body }),
+    deleteTenant: (id: number) =>
+      req(`/general-manager/tenants/${id}`, { method: 'DELETE' }),
+    addPromise: (id: number, body: { promise_date: string; note: string }) =>
+      req<PromiseItem>(`/general-manager/tenants/${id}/promises`, { method: 'POST', body }),
+    deletePromise: (tenantId: number, promiseId: number) =>
+      req(`/general-manager/tenants/${tenantId}/promises/${promiseId}`, { method: 'DELETE' }),
+    addNote: (id: number, body: { content: string }) =>
+      req<NoteItem>(`/general-manager/tenants/${id}/notes`, { method: 'POST', body }),
+    deleteNote: (tenantId: number, noteId: number) =>
+      req(`/general-manager/tenants/${tenantId}/notes/${noteId}`, { method: 'DELETE' }),
+    addPayment: (id: number, body: Record<string, any>) =>
+      req<PaymentLedgerItem>(`/general-manager/tenants/${id}/payments`, { method: 'POST', body }),
+    deletePayment: (tenantId: number, paymentId: number) =>
+      req(`/general-manager/tenants/${tenantId}/payments/${paymentId}`, { method: 'DELETE' }),
+
+    // Excel import
+    importTemplate: () => `${base}/general-manager/tenants/import/template`,
+    importExcel: (formData: FormData) =>
+      req<ImportResult>('/general-manager/tenants/import', { method: 'POST', body: formData }),
+
+    // Payment approvals
+    approvals: (params: { tab?: string; search?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.tab)    q.set('tab', params.tab)
+      if (params.search) q.set('search', params.search)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ payments: PaymentApprovalItem[]; pagination: Pagination; tabs: PaymentApprovalTabs }>(`/general-manager/payments/approvals?${q}`)
+    },
+    showApproval: (id: number) =>
+      req<PaymentApprovalItem>(`/general-manager/payments/approvals/${id}`),
+    approvePayment: (id: number) =>
+      req(`/general-manager/payments/approvals/${id}/approve`, { method: 'POST' }),
+    rejectPayment: (id: number, body: { rejection_reason: string }) =>
+      req(`/general-manager/payments/approvals/${id}/reject`, { method: 'POST', body }),
+    editPayment: (id: number, body: Record<string, any>) =>
+      req(`/general-manager/payments/approvals/${id}`, { method: 'PUT', body }),
+    deleteApproval: (id: number) =>
+      req(`/general-manager/payments/approvals/${id}`, { method: 'DELETE' }),
+
+    // Owner payments
+    ownerPayments: (params: { search?: string; owner_id?: number; period?: string; status?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search)   q.set('search', params.search)
+      if (params.owner_id) q.set('owner_id', String(params.owner_id))
+      if (params.period)   q.set('period', params.period)
+      if (params.status)   q.set('status', params.status)
+      if (params.page)     q.set('page', String(params.page))
+      return req<{ payments: OwnerPaymentItem[]; pagination: Pagination; statistics: any }>(`/general-manager/owner-payments?${q}`)
+    },
+    updateOwnerPaymentNotes: (id: number, body: { notes: string }) =>
+      req(`/general-manager/owner-payments/${id}/notes`, { method: 'PUT', body }),
+
+    // Notice requests (new v2 endpoint)
+    noticeRequests: (params: { tab?: string; search?: string; collector_id?: number; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.tab)          q.set('tab', params.tab)
+      if (params.search)       q.set('search', params.search)
+      if (params.collector_id) q.set('collector_id', String(params.collector_id))
+      if (params.page)         q.set('page', String(params.page))
+      return req<{ requests: NoticeRequest[]; pagination: Pagination; statistics: NoticeStatistics }>(`/general-manager/notice-requests?${q}`)
+    },
+    showNoticeRequest: (id: number) =>
+      req<NoticeRequest>(`/general-manager/notice-requests/${id}`),
+    issueNotice: (id: number, formData: FormData) =>
+      req<NoticeRequest>(`/general-manager/notice-requests/${id}/issue`, { method: 'POST', body: formData }),
+    approveNoticeDelivery: (id: number) =>
+      req<NoticeRequest>(`/general-manager/notice-requests/${id}/approve-delivery`, { method: 'POST' }),
+    rejectNoticeRequest: (id: number, body: { rejection_reason: string }) =>
+      req<NoticeRequest>(`/general-manager/notice-requests/${id}/reject`, { method: 'POST', body }),
+
+    // User management — Supervisors
+    supervisors: (params: { search?: string; type?: string } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search) q.set('search', params.search)
+      if (params.type)   q.set('type', params.type)
+      return req<{ supervisors: SupervisorUser[]; statistics: UserStatistics; types: UserTypeInfo[] }>(`/general-manager/supervisors?${q}`)
+    },
+    showSupervisor: (id: number) =>
+      req<SupervisorUser>(`/general-manager/supervisors/${id}`),
+    createSupervisor: (body: { name: string; type: string; phone?: string; password: string }) =>
+      req<SupervisorUser>('/general-manager/supervisors', { method: 'POST', body }),
+    updateSupervisor: (id: number, body: Record<string, any>) =>
+      req<SupervisorUser>(`/general-manager/supervisors/${id}`, { method: 'PUT', body }),
+    toggleSupervisor: (id: number) =>
+      req<SupervisorUser>(`/general-manager/supervisors/${id}/toggle-status`, { method: 'POST' }),
+    deleteSupervisor: (id: number) =>
+      req(`/general-manager/supervisors/${id}`, { method: 'DELETE' }),
+
+    // User management — Collectors
+    collectors: (params: { search?: string; is_active?: string } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search)    q.set('search', params.search)
+      if (params.is_active) q.set('is_active', params.is_active)
+      return req<{ collectors: CollectorUser[]; statistics: UserStatistics; tabs_counts: TabsCounts }>(`/general-manager/collectors?${q}`)
+    },
+    showCollector: (id: number) =>
+      req<CollectorUser>(`/general-manager/collectors/${id}`),
+    createCollector: (body: { name: string; phone?: string; password: string }) =>
+      req<CollectorUser>('/general-manager/collectors', { method: 'POST', body }),
+    updateCollector: (id: number, body: Record<string, any>) =>
+      req<CollectorUser>(`/general-manager/collectors/${id}`, { method: 'PUT', body }),
+    toggleCollector: (id: number) =>
+      req<CollectorUser>(`/general-manager/collectors/${id}/toggle-status`, { method: 'PATCH' }),
+    deleteCollector: (id: number) =>
+      req(`/general-manager/collectors/${id}`, { method: 'DELETE' }),
+
+    // User management — Owners
+    owners: (params: { search?: string; is_active?: string } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search)    q.set('search', params.search)
+      if (params.is_active) q.set('is_active', params.is_active)
+      return req<{ owners: OwnerUser[]; statistics: UserStatistics; tabs_counts: TabsCounts }>(`/general-manager/owners?${q}`)
+    },
+    showOwner: (id: number) =>
+      req<OwnerUser>(`/general-manager/owners/${id}`),
+    createOwner: (body: { name: string; national_id: string; phone?: string; password: string }) =>
+      req<OwnerUser>('/general-manager/owners', { method: 'POST', body }),
+    updateOwner: (id: number, body: Record<string, any>) =>
+      req<OwnerUser>(`/general-manager/owners/${id}`, { method: 'PUT', body }),
+    toggleOwner: (id: number) =>
+      req<OwnerUser>(`/general-manager/owners/${id}/toggle-status`, { method: 'PATCH' }),
+    deleteOwner: (id: number) =>
+      req(`/general-manager/owners/${id}`, { method: 'DELETE' }),
+  }
+
+  // ---------- COLLECTOR ----------
+  const collector = {
+    tenants: (params: { search?: string; period?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search) q.set('search', params.search)
+      if (params.period) q.set('period', params.period)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ tenants: TenantListItem[]; pagination: Pagination; period: string }>(`/collector/tenants?${q}`)
+    },
+    showTenant: (id: number, period?: string) =>
+      req<TenantDetail>(`/collector/tenants/${id}${period ? `?period=${period}` : ''}`),
+    addPromise: (id: number, body: { promise_date: string; note: string }) =>
+      req<PromiseItem>(`/collector/tenants/${id}/promises`, { method: 'POST', body }),
+    addNote: (id: number, body: { content: string }) =>
+      req<NoteItem>(`/collector/tenants/${id}/notes`, { method: 'POST', body }),
+    addPaymentForTenant: (id: number, formData: FormData) =>
+      req<PaymentLedgerItem>(`/collector/tenants/${id}/payments`, { method: 'POST', body: formData }),
+    payments: (params: { search?: string; period?: string; status?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search) q.set('search', params.search)
+      if (params.period) q.set('period', params.period)
+      if (params.status) q.set('status', params.status)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ payments: CollectorPaymentItem[]; pagination: Pagination; statistics: any }>(`/collector/payments?${q}`)
+    },
+    showPayment: (id: number) =>
+      req<CollectorPaymentItem>(`/collector/payments/${id}`),
+    createPayment: (formData: FormData) =>
+      req<CollectorPaymentItem>('/collector/payments', { method: 'POST', body: formData }),
+
+    // Notice requests (new v2)
+    noticeRequests: (params: { search?: string; status?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search) q.set('search', params.search)
+      if (params.status) q.set('status', params.status)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ requests: NoticeRequest[]; pagination: Pagination; statistics: any }>(`/collector/notice-requests?${q}`)
+    },
+    showNoticeRequest: (id: number) =>
+      req<NoticeRequest>(`/collector/notice-requests/${id}`),
+    createNoticeRequest: (body: { tenant_id: number; reason: string }) =>
+      req<NoticeRequest>('/collector/notice-requests', { method: 'POST', body }),
+    submitDeliveryProof: (id: number, formData: FormData) =>
+      req<NoticeRequest>(`/collector/notice-requests/${id}/delivery-proof`, { method: 'POST', body: formData }),
+  }
+
+  // ---------- OWNER ----------
+  const owner = {
+    overview: (period?: string) =>
+      req<OwnerOverviewData>(`/owner/overview${period ? `?period=${period}` : ''}`),
+    payments: (params: { search?: string; period?: string; status?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search) q.set('search', params.search)
+      if (params.period) q.set('period', params.period)
+      if (params.status) q.set('status', params.status)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ payments: OwnerPaymentItem[]; pagination: Pagination; statistics: OwnerPaymentStats }>(`/owner/payments?${q}`)
+    },
+    showPayment: (id: number) =>
+      req<OwnerPaymentItem>(`/owner/payments/${id}`),
+    getPaymentNotes: (id: number) =>
+      req<{ payment: { id: number; property_unit: string; amount: number; period: string }; notes: OwnerPaymentNote[] }>(`/owner/payments/${id}/notes`),
+    addPaymentNote: (id: number, body: { content: string }) =>
+      req<OwnerPaymentNote>(`/owner/payments/${id}/notes`, { method: 'POST', body }),
+    properties: (period?: string) =>
+      req<OwnerPropertiesData>(`/owner/properties${period ? `?period=${period}` : ''}`),
+  }
+
+  return { auth, manager, collector, owner, base, token }
 }
