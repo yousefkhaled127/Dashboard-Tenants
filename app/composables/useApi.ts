@@ -311,5 +311,124 @@ export function useApi() {
       req<CollectorPaymentItem>('/collector/payments', { method: 'POST', body: formData }),
   }
 
-  return { auth, supervisor, collector, base, token }
+  // ---------- OWNER ----------
+  const owner = {
+    overview: (period?: string) => {
+      const q = period ? `?period=${period}` : ''
+      return req<OwnerOverviewData>(`/owner/overview${q}`)
+    },
+    payments: (params: { search?: string; period?: string; status?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search) q.set('search', params.search)
+      if (params.period) q.set('period', params.period)
+      if (params.status) q.set('status', params.status)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ payments: OwnerPaymentItem[]; pagination: Pagination; statistics: OwnerPaymentStats }>(`/owner/payments?${q}`)
+    },
+    getPaymentNotes: (id: number) =>
+      req<{ payment: { id: number; property_unit: string; amount: number; period: string }; notes: OwnerPaymentNote[] }>(`/owner/payments/${id}/notes`),
+    addPaymentNote: (id: number, body: { content: string }) =>
+      req<OwnerPaymentNote>(`/owner/payments/${id}/notes`, { method: 'POST', body }),
+    properties: (period?: string) => {
+      const q = period ? `?period=${period}` : ''
+      return req<OwnerPropertiesData>(`/owner/properties${q}`)
+    },
+  }
+
+  return { auth, supervisor, collector, owner, base, token }
+}
+
+// ==================== OWNER TYPES ====================
+export interface OwnerKpis {
+  collected_this_month: number
+  target_this_month: number
+  collection_percentage: number
+  total_collected_all_time: number
+  total_units_count: number
+}
+
+export interface OwnerMonthlyProgress {
+  target: number
+  collected: number
+  remaining: number
+  percentage: number
+  label: string
+}
+
+export interface OwnerAssignedCollector {
+  id: number
+  name: string
+  units_count: number
+  target_amount: number
+  collected_amount: number
+  percentage: number
+}
+
+export interface OwnerChartMonth {
+  period: string
+  month_label: string
+  collected_amount: number
+}
+
+export interface OwnerOverviewData {
+  period: string
+  period_formatted: string
+  kpis: OwnerKpis
+  monthly_progress: OwnerMonthlyProgress
+  assigned_collectors: OwnerAssignedCollector[]
+  chart_last_6_months: OwnerChartMonth[]
+}
+
+export interface OwnerPaymentStats {
+  total_count: number
+  total_amount: number
+  approved_amount: number
+  pending_amount: number
+}
+
+export interface OwnerPaymentNote {
+  id: number
+  payment_id?: number
+  content: string
+  author_name: string
+  author_role: string
+  created_at: string
+  created_at_time: string
+}
+
+export interface OwnerPropertySummary {
+  name: string
+  units_count: number
+  total_monthly_target: number
+  total_collected: number
+  collection_percentage: number
+}
+
+export interface OwnerPropertyTenant {
+  id: number
+  property_unit: string
+  tenant_name: string
+  tenant_phone: string
+  collector_name: string
+  monthly_target: number
+  paid_amount: number
+  remaining_amount: number
+  status: string
+  status_label: string
+}
+
+export interface OwnerPropertiesStats {
+  total_units: number
+  total_target: number
+  total_collected: number
+  collection_percentage: number
+}
+
+export interface OwnerPropertiesData {
+  period: string
+  period_formatted: string
+  has_properties: boolean
+  properties: OwnerPropertySummary[]
+  tenants: OwnerPropertyTenant[]
+  statistics: OwnerPropertiesStats
 }
