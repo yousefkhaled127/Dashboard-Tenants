@@ -754,21 +754,8 @@ export interface ListingStats {
 // ============================================================
 // ==================== FEATURED TYPES ====================
 // ============================================================
-export interface FeaturedTask {
-  id: string
-  type: string
-  title: string
-  assignee_id: number | null
-  assignee_name?: string
-  assignee_role?: string
-  due: string
-  note: string
-  status: 'open' | 'progress' | 'done' | 'cancelled'
-  created_by_name?: string
-  created_at: string
-  done_at?: string | null
-  done_by_name?: string | null
-}
+// FeaturedTask is defined in useAppState.ts — imported from there
+// export interface FeaturedTask — removed to avoid duplicate
 
 export interface FeaturedItem {
   id: number

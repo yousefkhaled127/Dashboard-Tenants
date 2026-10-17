@@ -21,7 +21,7 @@
                 <td>{{ p.payment_method }}</td>
                 <td>
                   <div v-if="p.receipt_number">#{{ p.receipt_number }}</div>
-                  <div v-if="p.attachment_url" style="margin-top:4px;display:flex;align-items:center;gap:6px;">
+                  <div v-if="p.attachment_url" style="margin-top:4px;">
                     <a :href="p.attachment_url" target="_blank" class="dl-link">عرض المرفق</a>
                   </div>
                   <span v-if="!p.receipt_number && !p.attachment_url" class="muted">—</span>
@@ -70,32 +70,3 @@ async function fetchList() {
 
 onMounted(fetchList)
 </script>
-
-
-.empty-state { text-align:center; padding:40px 20px; color:#8A8479; }
-.empty-state b { display:block; color:#3A3733; font-size:14.5px; margin-bottom:4px; }
-</style>
-
-<style scoped>
-.page-title { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:10px; }
-.page-title h2 { margin:0; font-size:21px; font-weight:800; color:#3A3733; }
-.page-title p  { margin:2px 0 0; color:#8A8479; font-size:13px; }
-.search-bar { margin-bottom:14px; }
-.search-bar input { width:100%; padding:11px 15px; border-radius:10px; border:1.5px solid #E6DFD3; background:#fff; font-size:14px; outline:none; font-family:inherit; }
-.search-bar input:focus { border-color:#E1712F; }
-.card { background:#fff; border:1px solid #E6DFD3; border-radius:14px; padding:20px; }
-.table-wrap { overflow-x:auto; }
-table { width:100%; border-collapse:collapse; font-size:13.5px; }
-th { text-align:right; color:#8A8479; font-weight:700; font-size:12px; padding:9px 10px; border-bottom:1.5px solid #E6DFD3; white-space:nowrap; }
-td { padding:11px 10px; border-bottom:1px solid #E6DFD3; vertical-align:middle; }
-tr:last-child td { border-bottom:none; }
-.dl-link { color:#B85423; font-weight:800; font-size:12px; text-decoration:none; }
-.dl-link:hover { text-decoration:underline; }
-.badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:800; }
-.badge-pending  { background:#FBEEDA; color:#B8791E; }
-.badge-approved { background:#E4F1E7; color:#3F7D52; }
-.badge-rejected { background:#F7E7E2; color:#B3452F; }
-.muted { color:#8A8479; }
-.empty-state { text-align:center; padding:40px 20px; color:#8A8479; }
-.empty-state b { display:block; color:#3A3733; font-size:14.5px; margin-bottom:4px; }
-</style>
