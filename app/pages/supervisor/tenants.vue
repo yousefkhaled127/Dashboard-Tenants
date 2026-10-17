@@ -217,7 +217,7 @@
 import { useApi, type TenantListItem, type TenantDetail, type UserByType } from '~/composables/useApi'
 import { useFormat } from '~/composables/useFormat'
 
-const { supervisor, auth } = useApi()
+const { manager: supervisor, auth } = useApi()
 const { monthKey, monthLabel, fmtMoney, todayISO } = useFormat()
 
 const showToast = inject<(m: string) => void>('showToast', () => {})
@@ -269,7 +269,11 @@ async function fetchList() {
       period: mk,
       page: currentPage.value,
     })
-  } catch { showToast('تعذّر جلب قائمة المستأجرين') }
+  } catch (e: any) {
+    const msg = e?.data?.message || e?.message || 'تعذّر جلب قائمة المستأجرين'
+    console.error('fetchList error:', e?.data || e)
+    showToast(msg)
+  }
 }
 
 async function fetchCollectorsAndOwners() {

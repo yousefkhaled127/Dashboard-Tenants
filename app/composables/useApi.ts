@@ -407,6 +407,7 @@ export function useApi() {
       ...opts,
       headers: {
         Accept: 'application/json',
+        'ngrok-skip-browser-warning': 'true',
         ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
         ...opts.headers,
       },
@@ -643,4 +644,376 @@ export function useApi() {
   }
 
   return { auth, manager, collector, owner, base, token }
+}
+
+// ============================================================
+// ==================== VACANCIES TYPES ====================
+// ============================================================
+export interface VacancyItem {
+  id: number
+  property_id: number | null
+  property_name: string
+  unit: string
+  price: number
+  price_cycle: string
+  rooms: number
+  location: string
+  notes: string
+  status: 'vacant' | 'deposit' | 'rented'
+  deposit_by: number | null
+  deposit_by_name?: string
+  deposit_amount: number
+  deposit_date: string
+  rented_by: number | null
+  rented_by_name?: string
+  rented_date: string
+  rent_price: number
+  tenant_name: string
+  tenant_phone: string
+  history: { status: string; collector_id: number | null; note: string; at: string }[]
+  created_at: string
+  updated_at: string
+}
+
+export interface VacancyStats {
+  vacant_count: number
+  deposit_count: number
+  rented_count: number
+  rented_this_month: number
+}
+
+// ============================================================
+// ==================== LISTINGS TYPES ====================
+// ============================================================
+export interface ListingItem {
+  id: number
+  code: string
+  ext_code?: string
+  kind: 'office' | 'external'
+  title: string
+  unit_type: string
+  unit_no: string
+  status: string
+  vacant: boolean
+  responsible_id: number | null
+  responsible_name?: string
+  responsible_role?: string
+  owner_id: number | null
+  owner_name: string
+  owner_phone: string
+  brokerage_no: string
+  brokerage_date: string
+  description: string
+  deal_type: string
+  rent_price: string
+  rent_cycle: string
+  sale_price: string
+  photos_count: number
+  first_photo_url?: string | null
+  published_platforms: string[]
+  license_number?: string
+  license_expiry?: string
+  guard_name?: string
+  guard_phone?: string
+  guard_unit_code?: string
+  location_lat?: number | null
+  location_lng?: number | null
+  location_address?: string
+  // outside-office
+  review?: 'pending' | 'needs_info' | 'accepted' | 'rejected'
+  ext_note?: string
+  ext_reject_reason?: string
+  // close data
+  close_reason?: string
+  close_note?: string
+  closed_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ListingDetail extends ListingItem {
+  answers: Record<string, any>
+  photos: { id: number; url: string; name: string }[]
+  videos: { id: number; url: string; name: string }[]
+  video_url?: string
+  license_file_url?: string
+  platforms: Record<string, { url: string; ad_no: string; at: string; by_name: string }>
+  history: { id: string; type: string; at: string; by_name: string; by_role: string; text: string }[]
+  checklist_pct: number
+  available_platforms: { id: string; name: string; domain: string }[]
+}
+
+export interface ListingStats {
+  active_count: number
+  published_count: number
+  license_alerts_count: number
+  closed_count: number
+  external_pending_count: number
+}
+
+// ============================================================
+// ==================== FEATURED TYPES ====================
+// ============================================================
+export interface FeaturedTask {
+  id: string
+  type: string
+  title: string
+  assignee_id: number | null
+  assignee_name?: string
+  assignee_role?: string
+  due: string
+  note: string
+  status: 'open' | 'progress' | 'done' | 'cancelled'
+  created_by_name?: string
+  created_at: string
+  done_at?: string | null
+  done_by_name?: string | null
+}
+
+export interface FeaturedItem {
+  id: number
+  listing_id: number
+  listing_code: string
+  listing_title: string
+  listing_unit_type?: string
+  listing_rent_price?: string
+  listing_sale_price?: string
+  listing_deal_type?: string
+  listing_vacant?: boolean
+  listing_status?: string
+  stage: string
+  added_by_name: string
+  added_at: string
+  updated_at: string
+  tasks: FeaturedTask[]
+  open_tasks_count: number
+  late_tasks_count: number
+  done_tasks_count: number
+  open_assignees: string[]
+}
+
+export interface FeaturedStats {
+  total_count: number
+  open_tasks_count: number
+  late_tasks_count: number
+  done_tasks_count: number
+  my_open_tasks_count: number
+}
+
+// ============================================================
+// ==================== EXTENDED useApi ====================
+// ============================================================
+export function useVacanciesApi() {
+  const config = useRuntimeConfig()
+  const base = config.public.apiBase
+  const token = useCookie<string>('tahsilat-token')
+
+  async function req<T = any>(url: string, opts: Record<string, any> = {}): Promise<T> {
+    const res = await $fetch<{ success: boolean; message: string; data: T }>(base + url, {
+      ...opts,
+      headers: {
+        Accept: 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
+        ...opts.headers,
+      },
+    })
+    return res.data
+  }
+
+  // ---------- SUPERVISOR ----------
+  const supervisor = {
+    list: (params: { search?: string; status?: string; property_id?: number; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search)      q.set('search', params.search)
+      if (params.status)      q.set('status', params.status)
+      if (params.property_id) q.set('property_id', String(params.property_id))
+      if (params.page)        q.set('page', String(params.page))
+      return req<{ vacancies: VacancyItem[]; statistics: VacancyStats; pagination: any }>(`/general-manager/vacancies?${q}`)
+    },
+    create: (body: Record<string, any>) =>
+      req<VacancyItem>('/general-manager/vacancies', { method: 'POST', body }),
+    update: (id: number, body: Record<string, any>) =>
+      req<VacancyItem>(`/general-manager/vacancies/${id}`, { method: 'PUT', body }),
+    delete: (id: number) =>
+      req(`/general-manager/vacancies/${id}`, { method: 'DELETE' }),
+    updateStatus: (id: number, body: Record<string, any>) =>
+      req<VacancyItem>(`/general-manager/vacancies/${id}/status`, { method: 'POST', body }),
+  }
+
+  // ---------- COLLECTOR ----------
+  const collector = {
+    list: (params: { status?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.status) q.set('status', params.status)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ vacancies: VacancyItem[]; statistics: VacancyStats; pagination: any }>(`/collector/vacancies?${q}`)
+    },
+    updateStatus: (id: number, body: Record<string, any>) =>
+      req<VacancyItem>(`/collector/vacancies/${id}/status`, { method: 'POST', body }),
+  }
+
+  // ---------- OWNER ----------
+  const owner = {
+    list: (params: { status?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.status) q.set('status', params.status)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ vacancies: VacancyItem[]; statistics: VacancyStats; pagination: any }>(`/owner/vacancies?${q}`)
+    },
+  }
+
+  return { supervisor, collector, owner }
+}
+
+export function useListingsApi() {
+  const config = useRuntimeConfig()
+  const base = config.public.apiBase
+  const token = useCookie<string>('tahsilat-token')
+
+  async function req<T = any>(url: string, opts: Record<string, any> = {}): Promise<T> {
+    const res = await $fetch<{ success: boolean; message: string; data: T }>(base + url, {
+      ...opts,
+      headers: {
+        Accept: 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
+        ...opts.headers,
+      },
+    })
+    return res.data
+  }
+
+  // ---------- SUPERVISOR ----------
+  const supervisor = {
+    list: (params: { search?: string; status?: string; unit_type?: string; deal_type?: string; responsible_id?: number; tab?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search)         q.set('search', params.search)
+      if (params.status)         q.set('status', params.status)
+      if (params.unit_type)      q.set('unit_type', params.unit_type)
+      if (params.deal_type)      q.set('deal_type', params.deal_type)
+      if (params.responsible_id) q.set('responsible_id', String(params.responsible_id))
+      if (params.tab)            q.set('tab', params.tab)
+      if (params.page)           q.set('page', String(params.page))
+      return req<{ listings: ListingItem[]; statistics: ListingStats; pagination: any }>(`/general-manager/listings?${q}`)
+    },
+    show: (id: number) =>
+      req<ListingDetail>(`/general-manager/listings/${id}`),
+    create: (body: Record<string, any>) =>
+      req<ListingDetail>('/general-manager/listings', { method: 'POST', body }),
+    update: (id: number, body: Record<string, any>) =>
+      req<ListingDetail>(`/general-manager/listings/${id}`, { method: 'PUT', body }),
+    delete: (id: number) =>
+      req(`/general-manager/listings/${id}`, { method: 'DELETE' }),
+    updateStatus: (id: number, body: { status: string }) =>
+      req<ListingDetail>(`/general-manager/listings/${id}/status`, { method: 'POST', body }),
+    close: (id: number, body: { reason: string; note?: string }) =>
+      req<ListingDetail>(`/general-manager/listings/${id}/close`, { method: 'POST', body }),
+    reopen: (id: number) =>
+      req<ListingDetail>(`/general-manager/listings/${id}/reopen`, { method: 'POST' }),
+    addPlatform: (id: number, platformId: string, body: { url: string; ad_no?: string }) =>
+      req<ListingDetail>(`/general-manager/listings/${id}/platforms/${platformId}`, { method: 'POST', body }),
+    removePlatform: (id: number, platformId: string) =>
+      req<ListingDetail>(`/general-manager/listings/${id}/platforms/${platformId}`, { method: 'DELETE' }),
+    // outside-office review (general manager only)
+    exDecide: (id: number, body: { action: 'accept' | 'reject' | 'info'; note?: string }) =>
+      req<ListingDetail>(`/general-manager/listings/${id}/review`, { method: 'POST', body }),
+    exReopen: (id: number) =>
+      req<ListingDetail>(`/general-manager/listings/${id}/review/reopen`, { method: 'POST' }),
+  }
+
+  // ---------- COLLECTOR ----------
+  const collector = {
+    list: (params: { search?: string; status?: string; unit_type?: string; tab?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search)    q.set('search', params.search)
+      if (params.status)    q.set('status', params.status)
+      if (params.unit_type) q.set('unit_type', params.unit_type)
+      if (params.tab)       q.set('tab', params.tab)
+      if (params.page)      q.set('page', String(params.page))
+      return req<{ listings: ListingItem[]; statistics: ListingStats; pagination: any }>(`/collector/listings?${q}`)
+    },
+    show: (id: number) =>
+      req<ListingDetail>(`/collector/listings/${id}`),
+    create: (body: Record<string, any>) =>
+      req<ListingDetail>('/collector/listings', { method: 'POST', body }),
+    updateStatus: (id: number, body: { status: string }) =>
+      req<ListingDetail>(`/collector/listings/${id}/status`, { method: 'PATCH', body }),
+  }
+
+  // ---------- OWNER ----------
+  const ownerApi = {
+    list: (params: { search?: string; unit_type?: string; tab?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search)    q.set('search', params.search)
+      if (params.unit_type) q.set('unit_type', params.unit_type)
+      if (params.tab)       q.set('tab', params.tab)
+      if (params.page)      q.set('page', String(params.page))
+      return req<{ listings: ListingItem[]; statistics: ListingStats; pagination: any }>(`/owner/listings?${q}`)
+    },
+  }
+
+  return { supervisor, collector, owner: ownerApi }
+}
+
+export function useFeaturedApi() {
+  const config = useRuntimeConfig()
+  const base = config.public.apiBase
+  const token = useCookie<string>('tahsilat-token')
+
+  async function req<T = any>(url: string, opts: Record<string, any> = {}): Promise<T> {
+    const res = await $fetch<{ success: boolean; message: string; data: T }>(base + url, {
+      ...opts,
+      headers: {
+        Accept: 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        ...(token.value ? { Authorization: `Bearer ${token.value}` } : {}),
+        ...opts.headers,
+      },
+    })
+    return res.data
+  }
+
+  // ---------- SUPERVISOR ----------
+  const supervisor = {
+    list: (params: { search?: string; stage?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.search) q.set('search', params.search)
+      if (params.stage)  q.set('stage', params.stage)
+      if (params.page)   q.set('page', String(params.page))
+      return req<{ featured: FeaturedItem[]; statistics: FeaturedStats; pagination: any }>(`/general-manager/featured?${q}`)
+    },
+    show: (id: number) =>
+      req<FeaturedItem>(`/general-manager/featured/${id}`),
+    add: (body: { listing_id: number }) =>
+      req<FeaturedItem>('/general-manager/featured', { method: 'POST', body }),
+    remove: (id: number) =>
+      req(`/general-manager/featured/${id}`, { method: 'DELETE' }),
+    updateStage: (id: number, body: { stage: string }) =>
+      req<FeaturedItem>(`/general-manager/featured/${id}/stage`, { method: 'PATCH', body }),
+    addTask: (id: number, body: { type: string; title: string; assignee_id: number; due?: string; note?: string }) =>
+      req<FeaturedItem>(`/general-manager/featured/${id}/tasks`, { method: 'POST', body }),
+    updateTask: (id: number, taskId: string, body: Record<string, any>) =>
+      req<FeaturedItem>(`/general-manager/featured/${id}/tasks/${taskId}`, { method: 'PUT', body }),
+    updateTaskStatus: (id: number, taskId: string, body: { status: string }) =>
+      req<FeaturedItem>(`/general-manager/featured/${id}/tasks/${taskId}/status`, { method: 'PATCH', body }),
+    deleteTask: (id: number, taskId: string) =>
+      req(`/general-manager/featured/${id}/tasks/${taskId}`, { method: 'DELETE' }),
+  }
+
+  // ---------- COLLECTOR ----------
+  const collector = {
+    list: (params: { tab?: string; page?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.tab)  q.set('tab', params.tab)
+      if (params.page) q.set('page', String(params.page))
+      return req<{ featured: FeaturedItem[]; statistics: FeaturedStats; pagination: any }>(`/collector/featured?${q}`)
+    },
+    myTasks: () =>
+      req<{ tasks: (FeaturedTask & { featured_id: number; listing_code: string; listing_title: string })[] }>('/collector/featured/my-tasks'),
+    updateTaskStatus: (featuredId: number, taskId: string, body: { status: string }) =>
+      req<FeaturedItem>(`/collector/featured/${featuredId}/tasks/${taskId}/status`, { method: 'PATCH', body }),
+  }
+
+  return { supervisor, collector }
 }

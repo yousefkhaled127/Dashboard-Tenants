@@ -71,6 +71,11 @@ async function fetchList() {
 onMounted(fetchList)
 </script>
 
+
+.empty-state { text-align:center; padding:40px 20px; color:#8A8479; }
+.empty-state b { display:block; color:#3A3733; font-size:14.5px; margin-bottom:4px; }
+</style>
+
 <style scoped>
 .page-title { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:10px; }
 .page-title h2 { margin:0; font-size:21px; font-weight:800; color:#3A3733; }

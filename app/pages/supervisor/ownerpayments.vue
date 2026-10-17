@@ -72,7 +72,7 @@
 import { useApi, type OwnerPaymentItem } from '~/composables/useApi'
 import { useFormat } from '~/composables/useFormat'
 
-const { supervisor } = useApi()
+const { manager: supervisor } = useApi()
 const { fmtMoney, monthKey } = useFormat()
 const showToast = inject<(m: string) => void>('showToast', () => {})
 

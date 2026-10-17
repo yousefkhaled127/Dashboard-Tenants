@@ -1,26 +1,24 @@
 <template>
   <div>
-    <!-- ===== PDF REPORT ===== -->
+    <!-- ===== REPORT VIEW ===== -->
     <template v-if="showReport">
       <div class="page-title no-print">
         <div>
           <h2>تقرير الشقق (PDF)</h2>
-          <p>اختر نوع التقرير ثم اضغط «تنزيل PDF»</p>
+          <p>اضغط «تنزيل PDF» ثم احفظ بتنسيق PDF</p>
         </div>
         <div class="report-toolbar">
-          <button class="btn btn-ghost btn-sm" @click="showReport=false">→ رجوع للشقق</button>
+          <button class="btn btn-ghost btn-sm" @click="showReport=false">→ رجوع</button>
           <button class="btn btn-dark btn-sm" @click="printReport">⬇ تنزيل PDF</button>
         </div>
       </div>
 
-      <!-- Filters -->
       <div class="card no-print vrep-filters" style="margin-bottom:16px;">
         <div class="field">
           <label>نوع التقرير</label>
           <div class="radio-group">
             <div v-for="(lbl,k) in VAC_REPORT_TYPES" :key="k"
-                 class="radio-opt" :class="{ sel: repType===k }"
-                 @click="repType=k">{{ lbl }}</div>
+                 class="radio-opt" :class="{ sel: repType===k }" @click="repType=k">{{ lbl }}</div>
           </div>
         </div>
         <div class="row2" style="margin-top:10px;">
@@ -34,14 +32,13 @@
           <div class="field" style="margin:0;">
             <label>عرض</label>
             <select v-model="repMine">
-              <option value="all">كل المحصلين</option>
+              <option value="all">الكل</option>
               <option value="mine">أنا فقط</option>
             </select>
           </div>
         </div>
       </div>
 
-      <!-- PDF Paper -->
       <div class="vrep-paper">
         <div class="vrep-header">
           <div style="display:flex;align-items:center;gap:10px;">
@@ -69,22 +66,20 @@
           <div class="vrep-stat">
             <div class="lbl">شاغرة</div>
             <div class="val">{{ repData.vacant.length }}</div>
-            <div class="sub">{{ fmtMoney(sum(repData.vacant,'price')) }}</div>
+            <div class="sub">{{ fmtMoney(sumField(repData.vacant,'price')) }}</div>
           </div>
           <div class="vrep-stat vrep-deposit">
             <div class="lbl">تم العربون</div>
             <div class="val">{{ repData.deposit.length }}</div>
-            <div class="sub">عربون {{ fmtMoney(sum(repData.deposit,'depositAmount')) }}</div>
           </div>
           <div class="vrep-stat vrep-rented">
             <div class="lbl">مؤجرة</div>
             <div class="val">{{ repData.rented.length }}</div>
-            <div class="sub">قيمة التأجير {{ fmtMoney(sum(repData.rented,'rentPrice')) }}</div>
           </div>
         </div>
 
         <template v-for="sec in (['vacant','deposit','rented'] as const)" :key="sec">
-          <div v-if="repType==='all' || repType===sec" class="vrep-section">
+          <div v-if="repType==='all'||repType===sec" class="vrep-section">
             <div class="vrep-sec-head" :class="'vrep-'+sec">
               <span class="vrep-dot"></span>{{ secTitles[sec] }}
               <span class="vrep-count">{{ repData[sec].length }}</span>
@@ -94,41 +89,21 @@
                 <thead><tr><th v-for="h in secHeaders[sec]" :key="h">{{ h }}</th></tr></thead>
                 <tbody>
                   <tr v-if="!repData[sec].length">
-                    <td :colspan="secHeaders[sec].length" class="vrep-empty">لا توجد شقق في هذا التصنيف</td>
+                    <td :colspan="secHeaders[sec].length" class="vrep-empty">لا توجد شقق</td>
                   </tr>
                   <tr v-for="(v,i) in repData[sec]" :key="v.id">
-                    <td>{{ i+1 }}</td>
-                    <td>{{ vacPropName(v) }}</td>
-                    <td><b>{{ v.unit }}</b></td>
-                    <td>{{ v.rooms||'—' }}</td>
+                    <td>{{ i+1 }}</td><td>{{ v.property_name||v.propertyName }}</td><td><b>{{ v.unit }}</b></td><td>{{ v.rooms||'—' }}</td>
                     <template v-if="sec==='vacant'">
-                      <td>{{ fmtMoney(v.price) }}</td>
-                      <td>{{ v.priceCycle||'—' }}</td>
-                      <td>{{ v.location||'—' }}</td>
-                      <td class="vrep-note">{{ v.notes||'—' }}</td>
+                      <td>{{ fmtMoney(v.price) }}</td><td>{{ v.price_cycle||v.priceCycle||'—' }}</td><td>{{ v.location||'—' }}</td>
                     </template>
                     <template v-else-if="sec==='deposit'">
-                      <td>{{ fmtMoney(v.price) }}</td>
-                      <td><b>{{ fmtMoney(v.depositAmount) }}</b></td>
-                      <td>{{ fmtDate(v.depositDate) }}</td>
+                      <td>{{ fmtMoney(v.price) }}</td><td><b>{{ fmtMoney(v.deposit_amount||v.depositAmount) }}</b></td><td>{{ fmtDate(v.deposit_date||v.depositDate) }}</td>
                     </template>
                     <template v-else>
-                      <td>{{ fmtMoney(v.price) }}</td>
-                      <td><b>{{ fmtMoney(v.rentPrice||v.price) }}</b></td>
-                      <td>{{ fmtDate(v.rentedDate) }}</td>
-                      <td>{{ v.tenantName||'—' }}</td>
+                      <td>{{ fmtMoney(v.price) }}</td><td><b>{{ fmtMoney(v.rent_price||v.rentPrice||v.price) }}</b></td><td>{{ fmtDate(v.rented_date||v.rentedDate) }}</td><td>{{ v.tenant_name||v.tenantName||'—' }}</td>
                     </template>
                   </tr>
                 </tbody>
-                <tfoot v-if="repData[sec].length">
-                  <tr>
-                    <td colspan="4">الإجمالي ({{ repData[sec].length }} شقة)</td>
-                    <td>{{ fmtMoney(sum(repData[sec],'price')) }}</td>
-                    <td v-if="sec==='deposit'">{{ fmtMoney(sum(repData[sec],'depositAmount')) }}</td>
-                    <td v-if="sec==='rented'">{{ fmtMoney(sum(repData[sec],'rentPrice')) }}</td>
-                    <td v-for="n in (sec==='vacant'?3:sec==='deposit'?1:2)" :key="n"></td>
-                  </tr>
-                </tfoot>
               </table>
             </div>
           </div>
@@ -147,97 +122,99 @@
       <div class="page-title">
         <div>
           <h2>الشقق الشاغرة</h2>
-          <p>الشقق المتاحة للتأجير — حدّث الحالة عند استلام العربون أو إتمام التأجير</p>
+          <p>المتاحة للتأجير — حدّث الحالة عند استلام العربون أو إتمام التأجير</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" @click="openReport">⬇ تقرير PDF</button>
+          <button v-if="usingFallback" class="btn btn-ghost btn-sm" style="color:var(--warning);" title="يعمل بالبيانات المحلية" disabled>⚠ وضع محلي</button>
         </div>
       </div>
 
-      <!-- Stats -->
-      <div class="grid grid-4" style="margin-bottom:16px;">
-        <div class="card stat-card">
-          <div class="lbl">شاغرة</div>
-          <div class="val">{{ countByStatus('vacant') }}</div>
-        </div>
-        <div class="card stat-card" style="border-right-color:var(--warning);">
-          <div class="lbl">تم العربون</div>
-          <div class="val">{{ countByStatus('deposit') }}</div>
-        </div>
-        <div class="card stat-card" style="border-right-color:var(--success);">
-          <div class="lbl">أجّرتها أنت (هذا الشهر)</div>
-          <div class="val">{{ myRentedThisMonth }}</div>
-        </div>
-        <div class="card stat-card" style="border-right-color:var(--success);">
-          <div class="lbl">إجمالي ما أجّرته</div>
-          <div class="val">{{ myRentedTotal }}</div>
-        </div>
+      <!-- Loading -->
+      <div v-if="loading" class="card" style="text-align:center;padding:40px;">
+        <div class="spinner" style="margin:0 auto 12px;"></div>
+        <div class="muted">جارٍ تحميل البيانات...</div>
       </div>
 
-      <!-- Tabs -->
-      <div class="pill-tabs" style="flex-wrap:wrap;">
-        <button v-for="[k,lbl] in tabs" :key="k" class="pill-tab"
-                :class="{ active: activeTab===k }" @click="activeTab=k">
-          {{ lbl }} ({{ countTab(k) }})
-        </button>
-      </div>
-
-      <!-- Cards -->
-      <div class="grid grid-3">
-        <template v-if="filteredList.length">
-          <div v-for="v in filteredList" :key="v.id" class="card"
-               :style="`border-right:4px solid ${v.status==='rented'?'var(--success)':v.status==='deposit'?'var(--warning)':'var(--orange)'};${isMine(v)?'background:var(--success-tint);':''}`">
-
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
-              <div>
-                <h3 style="margin:0 0 3px;">{{ vacPropName(v) }} — وحدة {{ v.unit }}</h3>
-                <div v-if="v.location" class="muted" style="font-size:12px;">{{ v.location }}</div>
-              </div>
-              <span class="badge" :class="statusBadge(v.status)">{{ VAC_STATUS[v.status] }}</span>
-            </div>
-
-            <div class="kv"><span class="k">السعر</span><span class="v">{{ fmtMoney(v.price) }} <span class="muted" style="font-size:11.5px;">/ {{ v.priceCycle }}</span></span></div>
-            <div class="kv"><span class="k">عدد الغرف</span><span class="v">{{ v.rooms||'—' }}</span></div>
-            <div v-if="v.notes" class="note-item" style="margin-top:8px;">{{ v.notes }}</div>
-
-            <!-- Deposit info -->
-            <div v-if="v.status==='deposit'">
-              <div class="kv"><span class="k">العربون</span><span class="v">{{ fmtMoney(v.depositAmount) }}</span></div>
-              <div class="kv"><span class="k">تاريخ العربون</span><span class="v">{{ fmtDate(v.depositDate) }}</span></div>
-            </div>
-
-            <!-- Rented info -->
-            <div v-if="v.status==='rented'">
-              <div class="kv"><span class="k">المستأجر</span><span class="v">{{ v.tenantName||'—' }}{{ v.tenantPhone?' · '+v.tenantPhone:'' }}</span></div>
-              <div class="kv"><span class="k">تاريخ التأجير</span><span class="v">{{ fmtDate(v.rentedDate) }}</span></div>
-              <div v-if="isMine(v)" class="kv"><span class="k">أجّرتها أنت</span><span class="v" style="color:var(--success);">✓</span></div>
-            </div>
-
-            <!-- Actions: only for vacant/deposit -->
-            <div v-if="v.status!=='rented'" style="margin-top:12px;">
-              <button class="btn btn-dark btn-sm" style="width:100%;" @click="openStatus(v)">
-                {{ v.status==='vacant' ? 'تسجيل عربون' : 'تأكيد التأجير' }}
-              </button>
-            </div>
+      <template v-else>
+        <!-- Stats -->
+        <div class="grid grid-4" style="margin-bottom:16px;">
+          <div class="card stat-card">
+            <div class="lbl">شاغرة</div>
+            <div class="val">{{ stats.vacant_count }}</div>
           </div>
-        </template>
-        <div v-else class="card" style="grid-column:1/-1;">
-          <div class="empty-state"><b>لا توجد شقق في هذا التصنيف</b></div>
+          <div class="card stat-card" style="border-right-color:var(--warning);">
+            <div class="lbl">تم العربون</div>
+            <div class="val">{{ stats.deposit_count }}</div>
+          </div>
+          <div class="card stat-card" style="border-right-color:var(--success);">
+            <div class="lbl">أجّرتها أنت (هذا الشهر)</div>
+            <div class="val">{{ myRentedThisMonth }}</div>
+          </div>
+          <div class="card stat-card" style="border-right-color:var(--success);">
+            <div class="lbl">إجمالي ما أجّرته</div>
+            <div class="val">{{ myRentedTotal }}</div>
+          </div>
         </div>
-      </div>
+
+        <!-- Tabs -->
+        <div class="pill-tabs" style="flex-wrap:wrap;">
+          <button v-for="[k,lbl] in tabs" :key="k"
+                  class="pill-tab" :class="{ active: activeTab===k }" @click="setTab(k)">
+            {{ lbl }} ({{ tabCount(k) }})
+          </button>
+        </div>
+
+        <!-- Cards -->
+        <div class="grid grid-3">
+          <template v-if="filteredList.length">
+            <div v-for="v in filteredList" :key="v.id" class="card"
+                 :style="`border-right:4px solid ${v.status==='rented'?'var(--success)':v.status==='deposit'?'var(--warning)':'var(--orange)'};${isMine(v)?'background:var(--success-tint);':''}`">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+                <div>
+                  <h3 style="margin:0 0 3px;">{{ v.property_name||v.propertyName }} — وحدة {{ v.unit }}</h3>
+                  <div v-if="v.location" class="muted" style="font-size:12px;">{{ v.location }}</div>
+                </div>
+                <span class="badge" :class="statusBadge(v.status)">{{ VAC_STATUS[v.status] }}</span>
+              </div>
+
+              <div class="kv"><span class="k">السعر</span><span class="v">{{ fmtMoney(v.price) }} <span class="muted" style="font-size:11.5px;">/ {{ v.price_cycle||v.priceCycle }}</span></span></div>
+              <div class="kv"><span class="k">عدد الغرف</span><span class="v">{{ v.rooms||'—' }}</span></div>
+              <div v-if="v.notes" class="note-item" style="margin-top:8px;">{{ v.notes }}</div>
+
+              <template v-if="v.status==='deposit'">
+                <div class="kv"><span class="k">العربون</span><span class="v">{{ fmtMoney(v.deposit_amount||v.depositAmount) }}</span></div>
+                <div class="kv"><span class="k">تاريخ العربون</span><span class="v">{{ fmtDate(v.deposit_date||v.depositDate) }}</span></div>
+              </template>
+              <template v-if="v.status==='rented'">
+                <div class="kv"><span class="k">المستأجر</span><span class="v">{{ v.tenant_name||v.tenantName||'—' }}{{ (v.tenant_phone||v.tenantPhone)?' · '+(v.tenant_phone||v.tenantPhone):'' }}</span></div>
+                <div v-if="isMine(v)" class="kv"><span class="k">أجّرتها أنت</span><span class="v" style="color:var(--success);">✓</span></div>
+              </template>
+
+              <div v-if="v.status!=='rented'" style="margin-top:12px;">
+                <button class="btn btn-dark btn-sm" style="width:100%;" @click="openStatus(v)">
+                  {{ v.status==='vacant' ? 'تسجيل عربون' : 'تأكيد التأجير' }}
+                </button>
+              </div>
+            </div>
+          </template>
+          <div v-else class="card" style="grid-column:1/-1;">
+            <div class="empty-state"><b>لا توجد شقق في هذا التصنيف</b></div>
+          </div>
+        </div>
+      </template>
     </template>
 
-    <!-- ===== MODAL: UPDATE STATUS ===== -->
+    <!-- ===== MODAL: STATUS ===== -->
     <div v-if="statusModal" class="modal-overlay" @click.self="statusModal=null">
       <div class="modal">
         <div class="modal-head">
           <h3>{{ statusModal.status==='vacant' ? 'تسجيل عربون' : 'تأكيد التأجير' }}</h3>
           <button class="modal-close" @click="statusModal=null">×</button>
         </div>
-        <p class="hint">{{ vacPropName(statusModal) }} — وحدة {{ statusModal.unit }} · {{ fmtMoney(statusModal.price) }}</p>
+        <p class="hint">{{ statusModal.property_name||statusModal.propertyName }} — وحدة {{ statusModal.unit }} · {{ fmtMoney(statusModal.price) }}</p>
 
         <template v-if="statusModal.status==='vacant'">
-          <!-- Register deposit -->
           <div class="field"><label>تاريخ العربون</label><input v-model="sf.date" type="date"></div>
           <div class="field"><label>مبلغ العربون (ر.س)</label><input v-model.number="sf.depositAmount" type="number"></div>
           <div class="row2">
@@ -245,9 +222,7 @@
             <div class="field"><label>جوال المستأجر</label><input v-model="sf.tenantPhone" placeholder="05xxxxxxxx"></div>
           </div>
         </template>
-
         <template v-else>
-          <!-- Confirm rent -->
           <div class="field"><label>تاريخ التأجير</label><input v-model="sf.date" type="date"></div>
           <div class="row2">
             <div class="field"><label>اسم المستأجر</label><input v-model="sf.tenantName"></div>
@@ -255,12 +230,13 @@
           </div>
           <div class="field"><label>سعر التأجير الفعلي (ر.س)</label><input v-model.number="sf.rentPrice" type="number"></div>
         </template>
-
         <div class="field"><label>ملاحظة (اختياري)</label><input v-model="sf.note"></div>
 
         <div class="modal-actions">
           <button class="btn btn-ghost" @click="statusModal=null">إلغاء</button>
-          <button class="btn btn-primary" @click="saveStatus">حفظ</button>
+          <button class="btn btn-primary" :disabled="saving" @click="saveStatus">
+            {{ saving ? 'جارٍ الحفظ...' : 'حفظ' }}
+          </button>
         </div>
       </div>
     </div>
@@ -268,123 +244,167 @@
 </template>
 
 <script setup lang="ts">
-import { useExtState, type Vacancy } from '~/composables/useAppState'
+import { useVacanciesApi, type VacancyItem } from '~/composables/useApi'
+import { useExtState } from '~/composables/useAppState'
 import { useFormat } from '~/composables/useFormat'
 
-const { extState, load, save, uid, vacanciesSorted, vacPropName } = useExtState()
+const vacApi = useVacanciesApi()
+const { extState, load: loadLocal, save: saveLocal, vacPropName } = useExtState()
 const { fmtDate, fmtMoney, todayISO, monthKey, lastNMonths } = useFormat()
 
-const showToast = inject<(m:string)=>void>('showToast', m => console.log(m))
-const collectorSession = inject<any>('collectorSession')
-const myId = computed(() => collectorSession?.value?.id || '')
-const collectorName = computed(() => collectorSession?.value?.name || 'المحصل')
+const showToast   = inject<(m:string)=>void>('showToast', m => console.log(m))
+const colSession  = inject<any>('collectorSession')
+const myId        = computed(() => colSession?.value?.id || '')
+const collectorName = computed(() => colSession?.value?.name || 'المحصل')
 
-onMounted(() => load())
+// ── state ──
+const loading       = ref(true)
+const saving        = ref(false)
+const usingFallback = ref(false)
+const vacancies     = ref<any[]>([])
+const stats         = ref({ vacant_count:0, deposit_count:0, rented_count:0, rented_this_month:0 })
+const activeTab     = ref('available')
 
-// ===== CONSTANTS =====
-const VAC_STATUS: Record<string,string> = { vacant:'شاغرة', deposit:'تم العربون', rented:'تم التأجير' }
-const tabs: [string,string][] = [
-  ['available','المتاحة للتأجير'],
-  ['rented','أجّرتها أنا'],
-  ['all','الكل'],
-]
-
-// ===== HELPERS =====
-const isMine = (v: Vacancy) => String(v.rentedBy) === String(myId.value) || String(v.depositBy) === String(myId.value)
-const statusBadge = (s: string) => s==='rented'?'badge-approved':s==='deposit'?'badge-pending':'badge-neutral'
-const countByStatus = (s: string) => extState.value.vacancies.filter(v => v.status===s).length
-const countTab = (k: string) => {
-  if (k==='all') return extState.value.vacancies.length
-  if (k==='available') return extState.value.vacancies.filter(v => v.status!=='rented').length
-  if (k==='rented') return extState.value.vacancies.filter(v => v.status==='rented' && String(v.rentedBy)===String(myId.value)).length
-  return 0
-}
 const mk = monthKey()
+
+// ── constants ──
+const VAC_STATUS: Record<string,string> = { vacant:'شاغرة', deposit:'تم العربون', rented:'تم التأجير' }
+const tabs: [string,string][] = [['available','المتاحة'],['rented','أجّرتها أنا'],['all','الكل']]
+const statusBadge = (s: string) => s==='rented'?'badge-approved':s==='deposit'?'badge-pending':'badge-neutral'
+
+// ── helpers ──
+const propName  = (v: any) => v.property_name || v.propertyName || '—'
+const depAmount = (v: any) => v.deposit_amount ?? v.depositAmount ?? 0
+const depDate   = (v: any) => v.deposit_date   || v.depositDate   || ''
+const rentPrice = (v: any) => v.rent_price      || v.rentPrice      || v.price || 0
+const rentDate  = (v: any) => v.rented_date     || v.rentedDate     || ''
+const tenName   = (v: any) => v.tenant_name     || v.tenantName     || ''
+const tenPhone  = (v: any) => v.tenant_phone    || v.tenantPhone    || ''
+const priceCyc  = (v: any) => v.price_cycle     || v.priceCycle     || 'سنوي'
+
+const isMine = (v: any) => {
+  const rid = String(v.rented_by ?? v.rentedBy ?? '')
+  const did = String(v.deposit_by ?? v.depositBy ?? '')
+  const me  = String(myId.value)
+  return rid === me || did === me
+}
+
 const myRentedThisMonth = computed(() =>
-  extState.value.vacancies.filter(v => v.status==='rented' && String(v.rentedBy)===String(myId.value) && (v.rentedDate||'').slice(0,7)===mk).length
+  vacancies.value.filter(v => v.status==='rented' && isMine(v) && (rentDate(v)||'').slice(0,7)===mk).length
 )
 const myRentedTotal = computed(() =>
-  extState.value.vacancies.filter(v => v.status==='rented' && String(v.rentedBy)===String(myId.value)).length
+  vacancies.value.filter(v => v.status==='rented' && isMine(v)).length
 )
 
-const activeTab = ref('available')
+const tabCount = (k: string) => {
+  if (k==='all')       return vacancies.value.length
+  if (k==='available') return vacancies.value.filter(v=>v.status!=='rented').length
+  return vacancies.value.filter(v=>v.status==='rented' && isMine(v)).length
+}
 const filteredList = computed(() => {
-  const all = vacanciesSorted.value
-  if (activeTab.value === 'available') return all.filter(v => v.status !== 'rented')
-  if (activeTab.value === 'rented')    return all.filter(v => v.status === 'rented' && String(v.rentedBy)===String(myId.value))
-  return all
+  if (activeTab.value==='all')       return vacancies.value
+  if (activeTab.value==='available') return vacancies.value.filter(v=>v.status!=='rented')
+  return vacancies.value.filter(v=>v.status==='rented' && isMine(v))
 })
+function setTab(k: string) { activeTab.value = k }
 
-// ===== STATUS MODAL =====
-const statusModal = ref<Vacancy|null>(null)
+// ── LOAD (API → fallback) ──
+async function fetchData() {
+  loading.value = true
+  try {
+    const res = await vacApi.collector.list()
+    vacancies.value = res.vacancies || []
+    if (res.statistics) stats.value = res.statistics
+    usingFallback.value = false
+  } catch {
+    // fallback to localStorage
+    loadLocal()
+    usingFallback.value = true
+    vacancies.value = extState.value.vacancies || []
+    const vac = vacancies.value
+    stats.value = {
+      vacant_count:  vac.filter(v=>v.status==='vacant').length,
+      deposit_count: vac.filter(v=>v.status==='deposit').length,
+      rented_count:  vac.filter(v=>v.status==='rented').length,
+      rented_this_month: vac.filter(v=>v.status==='rented' && (v.rentedDate||'').slice(0,7)===mk).length,
+    }
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(fetchData)
+
+// ── STATUS MODAL ──
+const statusModal = ref<any|null>(null)
 const sf = ref({ date: todayISO(), depositAmount: 0, rentPrice: 0, tenantName: '', tenantPhone: '', note: '' })
 
-function openStatus(v: Vacancy) {
+function openStatus(v: any) {
   statusModal.value = v
-  sf.value = { date: todayISO(), depositAmount: v.depositAmount||0, rentPrice: v.rentPrice||v.price||0, tenantName: v.tenantName||'', tenantPhone: v.tenantPhone||'', note: '' }
+  sf.value = { date: todayISO(), depositAmount: depAmount(v), rentPrice: rentPrice(v), tenantName: tenName(v), tenantPhone: tenPhone(v), note: '' }
 }
 
-function saveStatus() {
+async function saveStatus() {
   const v = statusModal.value; if (!v) return
-  const now = new Date().toISOString()
-  const note = sf.value.note.trim()
-  if (v.status === 'vacant') {
-    // register deposit
-    Object.assign(v, { status:'deposit', depositBy: myId.value, depositAmount: sf.value.depositAmount, depositDate: sf.value.date, tenantName: sf.value.tenantName.trim(), tenantPhone: sf.value.tenantPhone.trim() })
-  } else if (v.status === 'deposit') {
-    // confirm rent
-    Object.assign(v, { status:'rented', rentedBy: myId.value, rentedDate: sf.value.date, rentPrice: sf.value.rentPrice, tenantName: sf.value.tenantName.trim(), tenantPhone: sf.value.tenantPhone.trim() })
+  saving.value = true
+  const isDeposit = v.status === 'vacant'
+  const body = isDeposit
+    ? { status:'deposit', collector_id: myId.value, deposit_date: sf.value.date, deposit_amount: sf.value.depositAmount, tenant_name: sf.value.tenantName.trim(), tenant_phone: sf.value.tenantPhone.trim(), note: sf.value.note.trim() }
+    : { status:'rented',  collector_id: myId.value, rented_date: sf.value.date,  rent_price: sf.value.rentPrice, tenant_name: sf.value.tenantName.trim(), tenant_phone: sf.value.tenantPhone.trim(), note: sf.value.note.trim() }
+
+  try {
+    const updated = await vacApi.collector.updateStatus(v.id, body)
+    const idx = vacancies.value.findIndex(x => x.id === v.id)
+    if (idx !== -1) vacancies.value[idx] = updated
+    showToast('تم تحديث حالة الشقة')
+  } catch {
+    // fallback: update localStorage
+    const local = extState.value.vacancies.find(x => String(x.id) === String(v.id))
+    if (local) {
+      const now = new Date().toISOString()
+      if (isDeposit) {
+        Object.assign(local, { status:'deposit', depositBy: myId.value, depositAmount: sf.value.depositAmount, depositDate: sf.value.date, tenantName: sf.value.tenantName, tenantPhone: sf.value.tenantPhone })
+      } else {
+        Object.assign(local, { status:'rented', rentedBy: myId.value, rentedDate: sf.value.date, rentPrice: sf.value.rentPrice, tenantName: sf.value.tenantName, tenantPhone: sf.value.tenantPhone })
+      }
+      if (!local.history) local.history = []
+      local.history.push({ status: local.status, collectorId: myId.value, note: sf.value.note, at: now, by: myId.value })
+      local.updatedAt = now
+      await saveLocal()
+      vacancies.value = [...extState.value.vacancies]
+    }
+    showToast('تم الحفظ محلياً (الـ API غير متاح)')
+  } finally {
+    saving.value = false
+    statusModal.value = null
   }
-  if (!v.history) v.history = []
-  v.history.push({ status: v.status, collectorId: myId.value, note, at: now, by: myId.value })
-  v.updatedAt = now
-  save()
-  showToast('تم تحديث حالة الشقة')
-  statusModal.value = null
 }
 
-// ===== REPORT =====
+// ── REPORT ──
 const showReport = ref(false)
-const repType = ref<'all'|'vacant'|'deposit'|'rented'>('all')
+const repType  = ref<'all'|'vacant'|'deposit'|'rented'>('all')
 const repPeriod = ref('all')
-const repMine = ref('all')
+const repMine   = ref('all')
 
 const VAC_REPORT_TYPES: Record<string,string> = { all:'جميع الشقق', vacant:'الشاغرة', deposit:'تم العربون', rented:'المؤجرة' }
 const secTitles: Record<string,string> = { vacant:'الشقق الشاغرة', deposit:'الشقق التي دُفع فيها عربون', rented:'الشقق المؤجرة' }
 const secHeaders: Record<string,string[]> = {
-  vacant:  ['#','العقار','الوحدة','الغرف','السعر','المدة','الحي','ملاحظات'],
+  vacant:  ['#','العقار','الوحدة','الغرف','السعر','المدة','الحي'],
   deposit: ['#','العقار','الوحدة','الغرف','السعر','مبلغ العربون','تاريخ العربون'],
   rented:  ['#','العقار','الوحدة','الغرف','السعر','سعر التأجير','تاريخ التأجير','المستأجر'],
 }
-
 const inPeriod = (d: string) => repPeriod.value==='all' || (d||'').slice(0,7)===repPeriod.value
-const isInScope = (v: Vacancy) => repMine.value==='mine' ? (String(v.rentedBy)===String(myId.value) || String(v.depositBy)===String(myId.value)) : true
-
-const repData = computed(() => {
-  const all = extState.value.vacancies
-  return {
-    vacant:  all.filter(v => v.status==='vacant' && isInScope(v)),
-    deposit: all.filter(v => v.status==='deposit' && inPeriod(v.depositDate) && isInScope(v)),
-    rented:  all.filter(v => v.status==='rented' && inPeriod(v.rentedDate) && isInScope(v)),
-  }
-})
-
-const sum = (arr: any[], f: string) => arr.reduce((s: number, v: any) => s + Number(v[f]||0), 0)
+const inScope  = (v: any)    => repMine.value==='mine' ? isMine(v) : true
+const repData  = computed(() => ({
+  vacant:  vacancies.value.filter(v=>v.status==='vacant'  && inScope(v)),
+  deposit: vacancies.value.filter(v=>v.status==='deposit' && inPeriod(depDate(v)) && inScope(v)),
+  rented:  vacancies.value.filter(v=>v.status==='rented'  && inPeriod(rentDate(v)) && inScope(v)),
+}))
+const sumField   = (arr: any[], f: string) => arr.reduce((s,v) => s + Number(v[f]||0), 0)
 const last12Months = computed(() => lastNMonths(12).slice().reverse())
 const fmtMonthLabel = (m: string) => {
   const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
-  const [y,mo] = m.split('-').map(Number)
-  return months[mo-1]+' '+y
+  const [y,mo] = m.split('-').map(Number); return months[mo-1]+' '+y
 }
-
-function openReport() {
-  repType.value = 'all'; repPeriod.value = 'all'; repMine.value = 'all'
-  showReport.value = true
-}
-function printReport() {
-  const old = document.title
-  document.title = `تقرير_الشقق_${todayISO()}`
-  window.print()
-  setTimeout(() => { document.title = old }, 800)
-}
+function openReport()  { repType.value='all'; repPeriod.value='all'; repMine.value='all'; showReport.value=true }
+function printReport() { const old=document.title; document.title=`تقرير_الشقق_${todayISO()}`; window.print(); setTimeout(()=>{ document.title=old },800) }
 </script>

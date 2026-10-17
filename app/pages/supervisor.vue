@@ -68,7 +68,18 @@
 
       <!-- Sync -->
       <div class="sync-box">
-        <button class="sync-btn" @click="refresh">↻ تحديث البيانات</button>
+        <div class="sync-row">
+          <button class="sync-btn" @click="refresh">↻ تحديث البيانات</button>
+          <button class="theme-sq" @click="toggleTheme" :title="isDark ? 'الوضع الفاتح' : 'الوضع الداكن'">
+            <svg v-if="isDark" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="4.2"/>
+              <path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+            </svg>
+          </button>
+        </div>
         <div class="sync-time">آخر مزامنة: {{ syncTime }}</div>
       </div>
 
@@ -103,6 +114,24 @@ const { load, pendingNoticeRequests, pendingNoticeDeliveries, pendingMaintReqCou
 // ── session (متاح للصفحات الفرعية عبر inject) ──
 const session = computed(() => ({ id: String(user.value?.id || ''), name: user.value?.name || '', role: user.value?.type || '' }))
 
+// ── dark mode ──
+const isDark = ref(false)
+function applyTheme(t: string) {
+  document.documentElement.setAttribute('data-theme', t)
+  const m = document.querySelector('meta[name="theme-color"]')
+  if (m) m.setAttribute('content', t === 'dark' ? '#0E0D0B' : '#3A3733')
+}
+function toggleTheme() {
+  isDark.value = !isDark.value
+  const next = isDark.value ? 'dark' : 'light'
+  const html = document.documentElement
+  html.classList.add('theme-anim')
+  applyTheme(next)
+  try { localStorage.setItem('tahsilat-theme', next) } catch {}
+  setTimeout(() => html.classList.remove('theme-anim'), 380)
+  showToastMsg(next === 'dark' ? 'تم التبديل إلى الوضع الداكن' : 'تم التبديل إلى الوضع الفاتح')
+}
+
 // ── mobile ──
 const mobileOpen = ref(false)
 watch(() => useRoute().path, () => { mobileOpen.value = false })
@@ -132,6 +161,18 @@ async function fetchDashboardData() {
 }
 
 onMounted(async () => {
+  // تطبيق الثيم المحفوظ
+  try {
+    const saved = localStorage.getItem('tahsilat-theme')
+    if (saved === 'dark' || saved === 'light') {
+      isDark.value = saved === 'dark'
+      applyTheme(saved)
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      isDark.value = prefersDark
+      applyTheme(prefersDark ? 'dark' : 'light')
+    }
+  } catch {}
   if (!requireRole('supervisor')) return
   await fetchMe()
   if (!requireRole('supervisor')) return
@@ -226,12 +267,20 @@ async function logout() {
 
 /* Sync */
 .sync-box { padding-top:10px; flex-shrink:0; }
+.sync-row { display:flex; gap:6px; margin-bottom:6px; }
 .sync-btn {
-  width:100%; background:rgba(225,113,47,.18); border:none; color:#F3C7A6;
+  flex:1; background:rgba(225,113,47,.18); border:none; color:#F3C7A6;
   padding:9px 12px; border-radius:9px; font-weight:700; font-size:12.5px;
-  margin-bottom:6px; cursor:pointer; font-family:inherit; transition:.15s;
+  cursor:pointer; font-family:inherit; transition:.15s;
 }
 .sync-btn:hover { background:rgba(225,113,47,.32); color:#fff; }
+.theme-sq {
+  flex-shrink:0; width:40px; border:none; border-radius:9px;
+  background:rgba(255,255,255,.08); color:#F3C7A6;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:.15s;
+}
+.theme-sq:hover { background:rgba(255,255,255,.18); color:#fff; }
 .sync-time { font-size:10.5px; color:#9A948B; text-align:center; margin-bottom:8px; }
 
 /* Logout */

@@ -7,7 +7,7 @@
         <h3>رفع ملف مستأجرين جدد</h3>
         <p class="hint">أعمدة الملف: <b>رقم المستأجر</b>، <b>اسم المستأجر</b>، <b>رقم الجوال</b>، <b>العقار والوحدة</b>، <b>تاريخ الاستحقاق</b> (YYYY-MM-DD)، <b>المحصل</b>، <b>المالك</b> (اختياري)، <b>الهدف الشهري</b>، <b>ملاحظات</b>.</p>
 
-        <div class="filepick" :class="{ has: !!selectedFile }" @click="$refs.fileInput.click()">
+        <div class="filepick" :class="{ has: !!selectedFile }" @click="fileInput?.click()">
           {{ selectedFile ? `تم اختيار: ${selectedFile.name} ✓` : 'اضغط لاختيار ملف إكسل (.xlsx, .xls, .csv)' }}
         </div>
         <input ref="fileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none;" @change="handleFile" />
@@ -53,12 +53,13 @@
 <script setup lang="ts">
 import { useApi, type ImportResult } from '~/composables/useApi'
 
-const { supervisor } = useApi()
+const { manager: supervisor } = useApi()
 const showToast = inject<(m: string) => void>('showToast', () => {})
 
 const selectedFile = ref<File | null>(null)
 const importing = ref(false)
 const importResult = ref<ImportResult | null>(null)
+const fileInput = ref<HTMLInputElement>()
 
 function handleFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
@@ -97,8 +98,16 @@ async function doImport() {
     showToast('تم الاستيراد بنجاح')
     selectedFile.value = null
   } catch (e: any) {
-    const msg = e?.data?.message || 'تعذّر استيراد الملف'
-    showToast(msg)
+    console.error('Import error full:', JSON.stringify(e?.data || e))
+    const data = e?.data
+    // Laravel validation errors (422)
+    if (data?.errors) {
+      const firstKey = Object.keys(data.errors)[0]
+      const firstMsg = Array.isArray(data.errors[firstKey]) ? data.errors[firstKey][0] : data.errors[firstKey]
+      showToast(firstMsg || data.message || 'تعذّر استيراد الملف')
+    } else {
+      showToast(data?.message || e?.message || 'تعذّر استيراد الملف')
+    }
   } finally {
     importing.value = false
   }

@@ -122,7 +122,7 @@
 import { useApi, type PaymentApprovalItem } from '~/composables/useApi'
 import { useFormat } from '~/composables/useFormat'
 
-const { supervisor } = useApi()
+const { manager: supervisor } = useApi()
 const { fmtMoney } = useFormat()
 const showToast = inject<(m: string) => void>('showToast', () => {})
 
@@ -224,7 +224,7 @@ async function confirmDelete() {
   if (!deletingId.value) return
   busy.value = deletingId.value
   try {
-    await supervisor.deletePayment(deletingId.value)
+    await supervisor.deleteApproval(deletingId.value)
     showToast('تم حذف السداد')
     deletingId.value = null
     await fetchList()

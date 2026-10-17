@@ -37,18 +37,5 @@ async function changePass() {
 }
 </script>
 
-<style scoped>
-.page-title { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px; }
-.page-title h2 { margin:0; font-size:21px; font-weight:800; color:#3A3733; }
-.page-title p  { margin:2px 0 0; color:#8A8479; font-size:13px; }
-.card { background:#fff; border:1px solid #E6DFD3; border-radius:14px; padding:20px; }
-.field { margin-bottom:14px; }
-.field label { display:block; font-size:13px; color:#8A8479; margin-bottom:6px; font-weight:700; }
-.field input { width:100%; padding:11px 13px; border-radius:10px; border:1.5px solid #E6DFD3; background:#F3EFE8; color:#2E2B27; outline:none; font-family:inherit; font-size:14px; }
-.field input:focus { border-color:#E1712F; background:#fff; }
-.form-error   { background:#F7E7E2; color:#B3452F; border-radius:9px; padding:10px 12px; font-size:13px; font-weight:700; margin-bottom:14px; }
-.form-success { background:#E4F1E7; color:#3F7D52; border-radius:9px; padding:10px 12px; font-size:13px; font-weight:700; margin-bottom:14px; }
-.btn { border:none; border-radius:10px; padding:13px 18px; font-weight:800; font-size:14px; cursor:pointer; transition:.15s; width:100%; }
-.btn-primary { background:#E1712F; color:#fff; } .btn-primary:hover:not(:disabled) { background:#B85423; }
-.btn:disabled { opacity:.6; cursor:default; }
-</style>
+
+
