@@ -149,13 +149,16 @@ provide('showToast', showToastMsg)
 provide('collectorSession', session)
 
 const navItems = computed(() => [
-  { to: '/collector',          label: 'محفظتي' },
-  { to: '/collector/tenants',  label: 'مستأجروني' },
-  { to: '/collector/submit',   label: 'رفع سداد' },
-  { to: '/collector/payments', label: 'سداداتي' },
-  { to: '/collector/notices',  label: 'طلبات الإشعارات', badge: noticesToDeliver.value || null },
-  { to: '/collector/alerts',   label: 'التنبيهات',        badge: alertsCount.value || null },
-  { to: '/collector/settings', label: 'كلمة المرور' },
+  { to: '/collector',           label: 'محفظتي' },
+  { to: '/collector/tenants',   label: 'مستأجروني' },
+  { to: '/collector/submit',    label: 'رفع سداد' },
+  { to: '/collector/payments',  label: 'سداداتي' },
+  { to: '/collector/notices',   label: 'طلبات الإشعارات', badge: noticesToDeliver.value || null },
+  { to: '/collector/vacancies', label: 'الشقق الشاغرة' },
+  { to: '/collector/listings',  label: 'مهام العقارات الشاغرة' },
+  { to: '/collector/featured',  label: 'التسويق المميز' },
+  { to: '/collector/alerts',    label: 'التنبيهات',       badge: alertsCount.value || null },
+  { to: '/collector/settings',  label: 'كلمة المرور' },
 ])
 
 async function logout() {

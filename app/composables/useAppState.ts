@@ -267,3 +267,230 @@ export function useAppState() {
     addSms, paymentTypeLabel, maintReportNum,
   }
 }
+
+// ============================================================
+// ==================== EXTENDED TYPES (v3) ====================
+// ============================================================
+
+// ---------- Vacancies ----------
+export interface VacancyHistory { status: string; collectorId: string | null; note: string; at: string; by: string }
+export interface VacancyHandover { mode: 'rent' | 'sale'; name: string; phone: string; idNumber: string; price: number; managed: boolean; propertyId?: string; tenantId?: string; contractId?: string; unit?: string; start?: string; end?: string; cycle?: number; total?: number }
+export interface Vacancy {
+  id: string; propertyId: string | null; propertyName: string; unit: string
+  price: number; priceCycle: string; rooms: number; location: string; notes: string
+  status: 'vacant' | 'deposit' | 'rented'
+  depositBy: string | null; depositAmount: number; depositDate: string
+  rentedBy: string | null; rentedDate: string; rentPrice: number
+  tenantName: string; tenantPhone: string
+  history: VacancyHistory[]; handover: VacancyHandover | null
+  createdAt: string; createdBy: string; updatedAt: string
+}
+
+// ---------- Contracts ----------
+export interface Contract {
+  id: string; propertyId: string; unit: string; tenantId: string | null
+  startDate: string; endDate: string; totalAmount: number
+  cycle: number; installment: number; notes: string
+  status: 'active' | 'renewed' | 'ended'
+  renewedFromId?: string | null; renewedToId?: string | null; renewedAt?: string
+  createdAt: string; createdBy: string; editedAt?: string
+}
+
+// ---------- Property (extended) ----------
+export interface PropertyFull { id: string; ownerId: string; name: string; location: string; createdAt: string }
+
+// ---------- Listings ----------
+export interface ListingHistory { id: string; at: string; by: string; type: string; [key: string]: any }
+export interface ListingPlatformEntry { url: string; adNo: string; at: string; by: string }
+export interface ListingLicense { number?: string; issue?: string; expiry?: string; file?: { name: string; type: string; data: string } | null }
+export interface ListingGuard { name?: string; phone?: string; unitCode?: string }
+export interface ListingLocation { lat: number; lng: number; address: string; accuracy?: number | null }
+export interface ListingExtSource { name?: string; phone?: string; note?: string }
+export interface Listing {
+  id: string; code: string; extCode?: string; kind: 'office' | 'external'
+  source: string; title: string; unitType: string
+  status: string; vacant: boolean
+  responsible: string; createdBy: string; createdAt: string; updatedAt: string; updatedBy: string
+  propertyId: string | null; unitNo: string
+  ownerMode: 'linked' | 'manual'; ownerId: string | null; ownerName: string; ownerPhone: string
+  brokerageNo: string; brokerageDate: string; description: string
+  answers: Record<string, any>; dealType: string
+  rentPrice: string; rentCycle: string; salePrice: string
+  photos: { type: string; name: string; data: string }[]
+  videos: { type: string; name: string; data: string }[]
+  videoUrl: string; license: ListingLicense; guard: ListingGuard
+  location: ListingLocation | null; platforms: Record<string, ListingPlatformEntry>
+  history: ListingHistory[]; vacancyId?: string
+  // outside-office review
+  review?: 'pending' | 'needs_info' | 'accepted' | 'rejected'
+  extSource?: ListingExtSource; extNote?: string; extRejectReason?: string
+  extDecidedAt?: string; extDecidedBy?: string
+  // close data
+  closedAt?: string; closedBy?: string; closeReason?: string; closeNote?: string
+  closeParty?: any
+}
+
+// ---------- Featured ----------
+export interface FeaturedTask {
+  id: string; type: string; title: string; assignee: string; due: string; note: string
+  status: 'open' | 'progress' | 'done' | 'cancelled'
+  createdBy: string; createdAt: string; updatedAt?: string; updatedBy?: string
+  doneAt?: string | null; doneBy?: string | null
+}
+export interface Featured {
+  id: string; listingId: string; stage: string
+  addedBy: string; addedAt: string; updatedAt: string; updatedBy: string
+  tasks: FeaturedTask[]; history: ListingHistory[]
+}
+
+// ---------- SMS Settings ----------
+export interface SmsSettings { enabled: boolean; webhookUrl: string }
+
+// ---------- Listing platform config ----------
+export interface ListingPlatform { id: string; name: string; domain: string; custom?: boolean; createdBy?: string; createdAt?: string }
+
+export interface ExtendedAppState {
+  vacancies: Vacancy[]
+  contracts: Contract[]
+  properties: PropertyFull[]
+  listings: Listing[]
+  featured: Featured[]
+  listingPlatforms: ListingPlatform[]
+  listingSeq: number
+  extSeq: number
+  smsSettings: SmsSettings
+}
+
+// ==================== DEFAULT LISTING PLATFORMS ====================
+export const LS_DEFAULT_PLATFORMS: ListingPlatform[] = [
+  { id: 'website', name: 'الموقع الإلكتروني', domain: '' },
+  { id: 'aqar',    name: 'عقار',   domain: 'aqar.fm' },
+  { id: 'haraj',   name: 'حراج',   domain: 'haraj.com.sa' },
+  { id: 'bayut',   name: 'بيوت',   domain: 'bayut.sa, bayut.com' },
+  { id: 'wasalt',  name: 'وصلت',   domain: 'wasalt.sa, wasalt.com' },
+  { id: 'deal',    name: 'ديل',    domain: '' },
+  { id: 'mktml',   name: 'مكتمل',  domain: '' },
+]
+
+// ==================== EXTENDED STATE COMPOSABLE ====================
+const extState = ref<ExtendedAppState>({
+  vacancies: [], contracts: [], properties: [],
+  listings: [], featured: [], listingPlatforms: JSON.parse(JSON.stringify(LS_DEFAULT_PLATFORMS)),
+  listingSeq: 0, extSeq: 0,
+  smsSettings: { enabled: false, webhookUrl: '' },
+})
+
+const EXT_STORAGE_KEY = 'tahsilat-ext-v1'
+
+export function useExtState() {
+  function load() {
+    if (!import.meta.client) return
+    try {
+      const raw = localStorage.getItem(EXT_STORAGE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<ExtendedAppState>
+        if (parsed.vacancies)         extState.value.vacancies         = parsed.vacancies
+        if (parsed.contracts)         extState.value.contracts         = parsed.contracts
+        if (parsed.properties)        extState.value.properties        = parsed.properties
+        if (parsed.listings)          extState.value.listings          = parsed.listings
+        if (parsed.featured)          extState.value.featured          = parsed.featured
+        if (parsed.listingPlatforms && parsed.listingPlatforms.length)
+                                      extState.value.listingPlatforms  = parsed.listingPlatforms
+        if (parsed.listingSeq != null) extState.value.listingSeq       = parsed.listingSeq
+        if (parsed.extSeq != null)     extState.value.extSeq           = parsed.extSeq
+        if (parsed.smsSettings)       extState.value.smsSettings       = parsed.smsSettings
+      }
+    } catch { /* silent */ }
+  }
+
+  function save() {
+    if (!import.meta.client) return
+    localStorage.setItem(EXT_STORAGE_KEY, JSON.stringify(extState.value))
+  }
+
+  // uid
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+
+  // ---------- Vacancy helpers ----------
+  const vacanciesSorted = computed(() =>
+    [...extState.value.vacancies].sort((a, b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''))
+  )
+  const vacantCount = computed(() => extState.value.vacancies.filter(v => v.status === 'vacant').length)
+  const vacPropName = (v: Vacancy) => {
+    if (v.propertyId) {
+      const p = extState.value.properties.find(x => x.id === v.propertyId)
+      if (p) return p.name
+    }
+    return v.propertyName || '—'
+  }
+
+  // ---------- Listing helpers ----------
+  const getListing  = (id: string) => extState.value.listings.find(l => l.id === id) ?? null
+  const lsOffice    = computed(() => extState.value.listings.filter(l => l.kind !== 'external'))
+  const exAll       = computed(() => extState.value.listings.filter(l => l.kind === 'external'))
+  const ftLive      = computed(() => extState.value.featured.filter(f => getListing(f.listingId)))
+  const ftByListing = (lid: string) => extState.value.featured.find(f => f.listingId === lid) ?? null
+
+  const lsMyOpenCount = (actorKey: string) =>
+    lsOffice.value.filter(l => l.vacant && l.responsible === actorKey && l.status !== 'published').length
+
+  const exPendingCount = computed(() =>
+    exAll.value.filter(l => l.review === 'pending' || l.review === 'needs_info').length
+  )
+
+  const ftMyOpenCount = (actorKey: string) => {
+    let count = 0
+    ftLive.value.forEach(f => {
+      f.tasks.forEach(t => { if (t.assignee === actorKey && (t.status === 'open' || t.status === 'progress')) count++ })
+    })
+    return count
+  }
+
+  const lsNextCode = () => {
+    extState.value.listingSeq = (Number(extState.value.listingSeq) || 0) + 1
+    return 'VU-' + String(extState.value.listingSeq).padStart(4, '0')
+  }
+  const exNextCode = () => {
+    extState.value.extSeq = (Number(extState.value.extSeq) || 0) + 1
+    return 'EX-' + String(extState.value.extSeq).padStart(4, '0')
+  }
+
+  const lsOwnerName = (l: Listing) => {
+    if (l.ownerId) {
+      const o = (useState<any>('tahsilat-owners')?.value || []).find((x: any) => x.id === l.ownerId)
+      return o?.name || l.ownerName || ''
+    }
+    return l.ownerName || ''
+  }
+
+  // ---------- Contract helpers ----------
+  const getProperty      = (id: string) => extState.value.properties.find(p => p.id === id) ?? null
+  const propertyContracts= (pid: string) => extState.value.contracts.filter(c => c.propertyId === pid)
+  const currentContracts = (pid: string) =>
+    propertyContracts(pid).filter(c => c.status !== 'renewed' && c.status !== 'ended')
+      .sort((a, b) => String(a.unit).localeCompare(String(b.unit), 'ar', { numeric: true }))
+  const contractState = (c: Contract) => {
+    if (c.status === 'renewed') return 'renewed'
+    if (c.status === 'ended')   return 'ended'
+    const today = new Date().toISOString().slice(0, 10)
+    if (c.endDate < today) return 'expired'
+    const diff = Math.round((new Date(c.endDate).getTime() - new Date(today).getTime()) / 86400000)
+    if (diff <= 30) return 'expiring'
+    return 'active'
+  }
+  const contractsNeedingRenewal = computed(() =>
+    extState.value.contracts
+      .filter(c => { const s = contractState(c); return s === 'expiring' || s === 'expired' })
+      .sort((a, b) => (a.endDate || '').localeCompare(b.endDate || ''))
+  )
+  const expiringContractsCount = computed(() => contractsNeedingRenewal.value.length)
+
+  return {
+    extState, load, save, uid,
+    vacanciesSorted, vacantCount, vacPropName,
+    getListing, lsOffice, exAll, ftLive, ftByListing,
+    lsMyOpenCount, exPendingCount, ftMyOpenCount, lsNextCode, exNextCode, lsOwnerName,
+    getProperty, propertyContracts, currentContracts, contractState,
+    contractsNeedingRenewal, expiringContractsCount,
+  }
+}

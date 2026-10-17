@@ -119,10 +119,12 @@ provide('showToast', showToastMsg)
 provide('ownerSession', computed(() => ({ id: user.value?.id, name: user.value?.name })))
 
 const navItems = [
-  { to: '/owner',            label: 'نظرة عامة' },
-  { to: '/owner/payments',   label: 'سدادات وحداتي' },
-  { to: '/owner/properties', label: 'إدارة أملاكي' },
-  { to: '/owner/settings',   label: 'كلمة المرور' },
+  { to: '/owner',             label: 'نظرة عامة' },
+  { to: '/owner/payments',    label: 'سدادات وحداتي' },
+  { to: '/owner/properties',  label: 'إدارة أملاكي' },
+  { to: '/owner/vacancies',   label: 'الشقق الشاغرة' },
+  { to: '/owner/listings',    label: 'مهام العقارات الشاغرة' },
+  { to: '/owner/settings',    label: 'كلمة المرور' },
 ]
 
 async function logout() {
