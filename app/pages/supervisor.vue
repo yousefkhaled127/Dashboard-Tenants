@@ -192,6 +192,7 @@ provide('supervisorSession', session)
 // ── nav ──
 const navItems = computed(() => [
   { to: '/supervisor',                label: 'نظرة عامة' },
+  { to: '/supervisor/import',         label: 'استيراد إكسل' },
   { to: '/supervisor/tenants',        label: 'المستأجرون' },
   { to: '/supervisor/vacancies',      label: 'الشقق الشاغرة' },
   { to: '/supervisor/listings',       label: 'مهام العقارات الشاغرة' },
@@ -204,7 +205,6 @@ const navItems = computed(() => [
   { to: '/supervisor/maintenance',    label: 'أعمال الصيانة' },
   { to: '/supervisor/tenantrequests', label: 'طلبات صيانة المستأجرين',   badge: pendingMaintReqCount.value || null },
   { to: '/supervisor/reports',        label: 'التقارير الشهرية' },
-  { to: '/supervisor/import',         label: 'استيراد إكسل' },
   { to: '/supervisor/smslog',         label: 'سجل رسائل SMS' },
   { to: '/supervisor/settings',       label: 'كلمة المرور والبيانات' },
 ])

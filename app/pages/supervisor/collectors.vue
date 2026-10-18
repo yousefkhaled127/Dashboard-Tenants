@@ -353,11 +353,17 @@ async function saveUser(u: any) {
 async function toggleUser(u: any) {
   saving.value = u.id
   try {
-    if (activeTab.value === 'supervisor') await manager.toggleSupervisor(u.id)
-    else if (activeTab.value === 'collector') await manager.toggleCollector(u.id)
-    else await manager.toggleOwner(u.id)
+    let updated: any
+    if (activeTab.value === 'supervisor') updated = await manager.toggleSupervisor(u.id)
+    else if (activeTab.value === 'collector') updated = await manager.toggleCollector(u.id)
+    else updated = await manager.toggleOwner(u.id)
+
+    // تحديث الـ user محلياً بدون reload
+    const idx = users.value.findIndex(x => x.id === u.id)
+    if (idx !== -1) {
+      users.value[idx] = { ...users.value[idx], is_active: updated?.is_active ?? !u.is_active }
+    }
     showToast(u.is_active ? `تم إيقاف حساب ${u.name}` : `تم تفعيل حساب ${u.name}`)
-    await fetchUsers()
   } catch (e: any) {
     showToast(e?.data?.message ?? 'تعذّر تغيير حالة الحساب')
   } finally {
@@ -375,9 +381,12 @@ async function confirmDeleteUser() {
     if (activeTab.value === 'supervisor') await manager.deleteSupervisor(u.id)
     else if (activeTab.value === 'collector') await manager.deleteCollector(u.id)
     else await manager.deleteOwner(u.id)
+
+    // حذف الـ user محلياً بدون reload
+    users.value = users.value.filter(x => x.id !== u.id)
+    tabCounts.value[activeTab.value] = Math.max(0, (tabCounts.value[activeTab.value] || 1) - 1)
     showToast(`تم حذف حساب ${u.name}`)
     confirmDelete.value = null
-    await fetchUsers()
   } catch (e: any) {
     showToast(e?.data?.message ?? 'تعذّر حذف الحساب')
   } finally {

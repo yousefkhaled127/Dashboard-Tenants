@@ -100,27 +100,22 @@ const collectorStats = computed<CollectorStat[]>(() =>
 async function loadData() {
   loading.value = true
   try {
-    // المحصلون + إحصائياتهم الشهرية
-    const cRes = await manager.collectors()
+    // كل الـ 3 calls بالتوازي — بدل ما تتنفذ واحدة ورا التانية
+    const [cRes, tRes, pRes] = await Promise.all([
+      manager.collectors(),
+      manager.tenants({ period: mk, page: 1 }),
+      manager.approvals({ tab: 'pending' }),
+    ])
+
     collectors.value     = cRes.collectors ?? []
     totalTarget.value    = collectors.value.reduce((s, c) => s + Number(c.target_this_month    || 0), 0)
     totalCollected.value = collectors.value.reduce((s, c) => s + Number(c.collected_this_month || 0), 0)
+    tenantsTotal.value   = tRes.pagination?.total ?? 0
+    pendingCount.value   = pRes.tabs?.pending_count ?? 0
 
-  } catch (e) { console.error('collectors:', e) }
+  } catch (e) { console.error('overview error:', e) }
 
-  try {
-    // إجمالي المستأجرين
-    const tRes = await manager.tenants({ period: mk, page: 1 })
-    tenantsTotal.value = tRes.pagination?.total ?? 0
-  } catch (e) { console.error('tenants:', e) }
-
-  try {
-    // سدادات بانتظار الاعتماد
-    const pRes = await manager.approvals({ tab: 'pending' })
-    pendingCount.value = pRes.tabs?.pending_count ?? 0
-  } catch (e) { console.error('approvals:', e) }
-
-  loading.value = false   // ← المهم: يتحدث دايماً
+  loading.value = false
 }
 
 // ── Charts ──
