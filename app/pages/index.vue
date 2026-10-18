@@ -165,11 +165,7 @@ onMounted(async () => {
     }
   } catch {}
 
-  // جرّب الـ API في الخلفية
-  try {
-    const roles = await auth.roles()
-    if (roles.length) availableRoles.value = roles
-  } catch {}
+  // لا نستخدم API للـ roles — نبقى على STATIC_ROLES دايماً
   await fetchUsers()
 })
 
