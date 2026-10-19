@@ -156,6 +156,22 @@ const importing    = ref(false)
 const previewRows  = ref<any[]>([])
 const importResult = ref<ImportResult | null>(null)
 
+// قوائم المحصلين والملاك للتحقق من الأسماء
+const collectorsList = ref<{id: number; name: string}[]>([])
+const ownersList     = ref<{id: number; name: string}[]>([])
+
+onMounted(async () => {
+  try {
+    const { auth } = useApi()
+    const [cols, owns] = await Promise.all([
+      auth.usersByType('collector'),
+      auth.usersByType('owner'),
+    ])
+    collectorsList.value = cols.map(c => ({ id: c.id, name: c.name }))
+    ownersList.value     = owns.map(o => ({ id: o.id, name: o.name }))
+  } catch { /* تجاهل */ }
+})
+
 const validRows = computed(() => previewRows.value.filter(r => r._valid))
 const errorRows = computed(() => previewRows.value.filter(r => !r._valid))
 const fileName  = computed(() => selectedFile.value?.name ?? '')
@@ -205,9 +221,25 @@ async function parseFile() {
 
     if (activeTab.value === 'tenants') {
       previewRows.value = json.map((r: any) => {
-        const name  = String(r['اسم المستأجر'] || r['المستأجر'] || r['name'] || '').trim()
-        const colName = String(r['المحصل'] || r['collector'] || '').trim()
-        const valid = !!name && !!colName
+        const name     = String(r['اسم المستأجر'] || r['المستأجر'] || r['name'] || '').trim()
+        const colName  = String(r['المحصل'] || r['collector'] || '').trim()
+        const ownName  = String(r['المالك'] || '').trim()
+
+        // التحقق من وجود المحصل في النظام
+        const colFound = !colName || collectorsList.value.some(
+          c => c.name.trim() === colName
+        )
+        // التحقق من وجود المالك (اختياري — فقط لو كتب اسم)
+        const ownFound = !ownName || ownersList.value.some(
+          o => o.name.trim() === ownName
+        )
+
+        let error = ''
+        if (!name)       error = 'الاسم مطلوب'
+        else if (!colName) error = 'المحصل مطلوب'
+        else if (!colFound) error = `لم يتم العثور على اسم المحصل: ${colName}`
+        else if (ownName && !ownFound) error = `لم يتم العثور على اسم المالك: ${ownName}`
+
         return {
           tenant_number:  String(r['رقم المستأجر'] || r['رقم'] || '').trim(),
           name,
@@ -215,10 +247,10 @@ async function parseFile() {
           property_unit:  String(r['العقار والوحدة']|| r['الوحدة'] || '').trim(),
           due_date:       String(r['تاريخ الاستحقاق']|| r['الاستحقاق']|| '').trim(),
           collector_name: colName,
-          owner_name:     String(r['المالك'] || '').trim(),
+          owner_name:     ownName,
           monthly_target: Number(r['الهدف الشهري'] || r['الهدف'] || 0),
-          _valid: valid,
-          _error: !name ? 'الاسم مطلوب' : !colName ? 'المحصل مطلوب' : '',
+          _valid: !!name && !!colName && colFound && (ownName ? ownFound : true),
+          _error: error,
         }
       })
     } else {

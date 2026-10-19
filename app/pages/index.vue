@@ -195,27 +195,27 @@ function selectRole(role: string) {
 async function login() {
   error.value = ''
 
-  // Owner login uses national_id — we fetch the user list from API first
+  // Owner login uses national_id
   if (selectedRole.value === 'owner') {
     if (!nationalId.value.trim()) { error.value = 'الرجاء إدخال رقم الهوية'; return }
     if (!password.value)           { error.value = 'الرجاء إدخال كلمة المرور'; return }
     loading.value = true
     try {
-      // جلب قائمة الملاك وإيجاد المطابق لرقم الهوية
-      let ownerUsers: UserByType[] = []
-      try {
-        ownerUsers = await auth.usersByType('owner')
-      } catch {}
-      const matched = ownerUsers.find(u => u.username === `owner_${nationalId.value.trim()}` || String(u.id) === nationalId.value.trim())
+      // جلب قائمة الملاك والبحث برقم الهوية
+      const ownerUsers = await auth.usersByType('owner').catch(() => [])
+      const matched = ownerUsers.find(u =>
+        u.national_id === nationalId.value.trim() ||
+        u.username    === `owner_${nationalId.value.trim()}`
+      )
       if (!matched) {
-        // نحاول login مباشرة بـ id = 0 وسيرجع خطأ من الـ API
         error.value = 'رقم الهوية غير مسجل لدى المؤسسة'
         loading.value = false
         return
       }
-      const user = await doLogin(matched.id, password.value, 'owner')
+      await doLogin(matched.id, password.value, 'owner')
       navigateTo('/owner')
     } catch (e: any) {
+      console.error('owner login error:', e?.data || e)
       error.value = extractError(e)
     } finally {
       loading.value = false
