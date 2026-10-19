@@ -86,9 +86,14 @@
               <div class="field"><label>رقم الهوية</label><input v-model="editForm.national_id" /></div>
               <div class="field"><label>تاريخ الميلاد</label><input v-model="editForm.birth_date" type="date" /></div>
             </div>
-            <button class="btn btn-dark btn-sm" style="width:100%" :disabled="saving" @click="saveEdit">
-              {{ saving ? 'جارٍ الحفظ...' : 'حفظ' }}
-            </button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-dark btn-sm" style="flex:2;" :disabled="saving" @click="saveEdit">
+                {{ saving ? 'جارٍ الحفظ...' : 'حفظ التعديلات' }}
+              </button>
+              <button class="btn btn-danger btn-sm" style="flex:1;" @click="confirmDeleteId = detailId!; confirmDeleteName = detail!.tenant_info.name">
+                حذف المستأجر
+              </button>
+            </div>
           </div>
 
           <div class="card" style="margin-bottom:16px;">
@@ -157,7 +162,12 @@
                   <td>{{ fmtMoney(t.monthly_target) }}</td>
                   <td>{{ fmtMoney(t.paid_amount) }}</td>
                   <td><span class="badge" :class="`badge-${t.status === 'regular' ? 'approved' : t.status}`">{{ t.status_label }}</span></td>
-                  <td><button class="btn btn-ghost btn-sm" @click.stop="openDetail(t.id)">فتح ›</button></td>
+                  <td>
+                    <div style="display:flex;gap:6px;justify-content:flex-end;">
+                      <button class="btn btn-dark btn-sm" @click.stop="openDetail(t.id)">تعديل</button>
+                      <button class="btn btn-danger btn-sm" @click.stop="confirmDeleteId = t.id; confirmDeleteName = t.name">حذف</button>
+                    </div>
+                  </td>
                 </tr>
               </template>
               <tr v-else><td colspan="9"><div class="empty-state"><b>لا يوجد مستأجرون مطابقون</b></div></td></tr>
@@ -210,6 +220,22 @@
         </div>
       </div>
     </div>
+    <!-- Confirm Delete Modal -->
+    <div v-if="confirmDeleteId" class="modal-overlay" @mousedown.self="confirmDeleteId = null">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>حذف المستأجر</h3>
+          <button class="modal-close" @click="confirmDeleteId = null">×</button>
+        </div>
+        <p style="line-height:1.8;">هل أنت متأكد من حذف المستأجر <b>{{ confirmDeleteName }}</b>؟<br>لا يمكن التراجع عن هذا الإجراء.</p>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" @click="confirmDeleteId = null">إلغاء</button>
+          <button class="btn btn-primary" style="background:var(--danger,#B3452F);" :disabled="deleting" @click="doDeleteTenant">
+            {{ deleting ? 'جارٍ الحذف...' : 'تأكيد الحذف' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -249,6 +275,31 @@ const editForm = reactive({
   national_id: '', birth_date: '',
 })
 
+const confirmDeleteId   = ref<number | null>(null)
+const confirmDeleteName = ref('')
+const deleting          = ref(false)
+
+async function doDeleteTenant() {
+  if (!confirmDeleteId.value) return
+  deleting.value = true
+  try {
+    await supervisor.deleteTenant(confirmDeleteId.value)
+    showToast('تم حذف المستأجر')
+    const deletedId = confirmDeleteId.value
+    confirmDeleteId.value = null
+    // لو في صفحة التفاصيل ارجع للقائمة
+    if (detailId.value === deletedId) {
+      closeDetail()
+    }
+    currentPage.value = 1
+    await fetchList()
+  } catch (e: any) {
+    showToast(e?.data?.message || 'تعذّر حذف المستأجر')
+  } finally {
+    deleting.value = false
+  }
+}
+
 const addForm = reactive({
   name: '', tenant_number: '', phone: '', property_unit: '', due_date: todayISO(),
   monthly_target: 0, collector_id: '' as number | '', owner_id: '' as number | '',
@@ -269,6 +320,7 @@ async function fetchList() {
       period: mk,
       page: currentPage.value,
     })
+    console.log(listData.value)
   } catch (e: any) {
     const msg = e?.data?.message || e?.message || 'تعذّر جلب قائمة المستأجرين'
     console.error('fetchList error:', e?.data || e)
@@ -356,15 +408,20 @@ async function addPromise() {
   if (!newPromiseDate.value) { showToast('اختر تاريخ الموعد'); return }
   saving.value = true
   try {
-    await supervisor.addPromise(detailId.value, {
+    const res = await supervisor.addPromise(detailId.value, {
       promise_date: newPromiseDate.value,
       note: newPromiseNote.value.trim(),
     })
+    // أضيف الموعد محلياً بدون reload
+    if (detail.value) {
+      detail.value.promises.push(res)
+    }
     showToast('تم إضافة الموعد')
-    await openDetail(detailId.value)
     newPromiseDate.value = todayISO()
     newPromiseNote.value = ''
-  } catch { showToast('تعذّر إضافة الموعد') } finally {
+  } catch (e: any) {
+    showToast(e?.data?.message || 'تعذّر إضافة الموعد')
+  } finally {
     saving.value = false
   }
 }
@@ -375,11 +432,16 @@ async function addNote() {
   if (!txt) return
   saving.value = true
   try {
-    await supervisor.addNote(detailId.value, { content: txt })
+    const res = await supervisor.addNote(detailId.value, { content: txt })
+    // أضيف الملاحظة محلياً بدون reload
+    if (detail.value) {
+      detail.value.notes_list.push(res)
+    }
     showToast('تم إضافة الملاحظة')
-    await openDetail(detailId.value)
     newNote.value = ''
-  } catch { showToast('تعذّر إضافة الملاحظة') } finally {
+  } catch (e: any) {
+    showToast(e?.data?.message || 'تعذّر إضافة الملاحظة')
+  } finally {
     saving.value = false
   }
 }

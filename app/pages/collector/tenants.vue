@@ -203,9 +203,10 @@ async function addPromise() {
   if (!promDate.value) { showToast('اختر تاريخ الموعد'); return }
   saving.value = true
   try {
-    await collector.addPromise(detailId.value, { promise_date: promDate.value, note: promNote.value.trim() })
+    const res = await collector.addPromise(detailId.value, { promise_date: promDate.value, note: promNote.value.trim() })
+    // أضيف محلياً بدون reload
+    if (detail.value) detail.value.promises.push(res)
     showToast('تم إضافة الموعد')
-    await openDetail(detailId.value)
     promDate.value = todayISO()
     promNote.value = ''
   } catch { showToast('تعذّر إضافة الموعد') } finally {
@@ -219,9 +220,10 @@ async function addNote() {
   if (!txt) return
   saving.value = true
   try {
-    await collector.addNote(detailId.value, { content: txt })
+    const res = await collector.addNote(detailId.value, { content: txt })
+    // أضيف محلياً بدون reload
+    if (detail.value) detail.value.notes_list.push(res)
     showToast('تم إضافة الملاحظة')
-    await openDetail(detailId.value)
     newNote.value = ''
   } catch { showToast('تعذّر إضافة الملاحظة') } finally {
     saving.value = false
