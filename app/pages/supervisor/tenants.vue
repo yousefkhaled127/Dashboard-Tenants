@@ -471,9 +471,15 @@ async function saveTenant() {
     currentPage.value = 1
     await fetchList()
   } catch (e: any) {
-    const msg = e?.data?.message
-    if (msg) { showToast(msg) }
-    else { showToast('تعذّر إضافة المستأجر') }
+    console.error('saveTenant error:', e?.data || e)
+    const data = e?.data
+    if (data?.errors) {
+      // Laravel validation errors
+      const msgs = Object.values(data.errors).flat().join(' | ')
+      showToast(msgs || data.message || 'تعذّر إضافة المستأجر')
+    } else {
+      showToast(data?.message || e?.message || 'تعذّر إضافة المستأجر')
+    }
   } finally {
     saving.value = false
   }
@@ -492,7 +498,7 @@ async function saveTenant() {
 .search-bar { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
 .search-bar input { flex:1; min-width:200px; padding:11px 15px; border-radius:10px; border:1.5px solid #E6DFD3; background:#fff; font-size:14px; outline:none; font-family:inherit; }
 .search-bar input:focus { border-color:#E1712F; }
-.search-bar select { padding:9px 12px; border-radius:9px; border:1.5px solid #E6DFD3; background:#F3EFE8; font-size:13px; font-weight:700; outline:none; font-family:inherit; }
+.search-bar select { background: white !important; padding:9px 12px; border-radius:9px; border:1.5px solid #E6DFD3; background:#F3EFE8; font-size:13px; font-weight:700; outline:none; font-family:inherit; }
 .table-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:13.5px; }
 th { text-align:right; color:#8A8479; font-weight:700; font-size:12px; padding:9px 10px; border-bottom:1.5px solid #E6DFD3; white-space:nowrap; }

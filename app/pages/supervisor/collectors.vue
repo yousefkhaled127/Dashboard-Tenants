@@ -287,10 +287,9 @@ async function fetchUsers() {
     const q = searchQ.value || undefined
     if (activeTab.value === 'supervisor') {
       const data = await manager.supervisors({ search: q })
-      users.value     = data.supervisors
-      typeInfo.value  = data.types ?? []
+      users.value    = data.supervisors
+      typeInfo.value = data.types ?? []
       tabCounts.value.supervisor = data.statistics.all_count
-      // refresh collector/owner counts from tabs_counts if available
     } else if (activeTab.value === 'collector') {
       const data = await manager.collectors({ search: q })
       users.value = data.collectors
@@ -308,13 +307,27 @@ async function fetchUsers() {
         tabCounts.value.collector  = data.tabs_counts.collectors
       }
     }
-    // rebuild edit forms
     users.value.forEach(buildEditForm)
   } catch { showToast('تعذّر جلب بيانات المستخدمين') }
   loading.value = false
 }
 
-onMounted(fetchUsers)
+// جلب عدد كل الـ tabs في أول load
+async function fetchAllCounts() {
+  try {
+    const data = await manager.collectors()
+    if (data.tabs_counts) {
+      tabCounts.value.supervisor = data.tabs_counts.supervisors
+      tabCounts.value.collector  = data.tabs_counts.collectors
+      tabCounts.value.owner      = data.tabs_counts.owners
+    }
+  } catch { /* تجاهل */ }
+}
+
+onMounted(() => {
+  fetchUsers()
+  fetchAllCounts()
+})
 
 function switchTab(t: string) {
   activeTab.value = t
