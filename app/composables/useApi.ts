@@ -431,8 +431,8 @@ export function useApi() {
         body: { device_name: 'web', ...body },
       }),
 
-    /** owner login برقم الهوية مباشرة — يُرسَل national_id بدل user_id */
-    loginOwner: (body: { national_id: string; password: string }) =>
+    /** owner login برقم الهوية أو الجوال أو البريد مباشرة */
+    loginOwner: (body: { login: string; password: string }) =>
       req<LoginResponse>('/auth/login', {
         method: 'POST',
         body: { device_name: 'web', type: 'owner', ...body },

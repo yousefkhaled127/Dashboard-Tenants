@@ -47,23 +47,14 @@
         </button>
       </div>
 
-      <!-- Owner: login by national ID or dropdown -->
+      <!-- Owner: login by national ID -->
       <template v-if="selectedRole === 'owner'">
         <div class="field">
-          <label>اختر حسابك</label>
-          <select v-model="selectedUserId">
-            <option :value="null">{{ loadingUsers ? 'جارٍ التحميل...' : 'اختر اسمك' }}</option>
-            <option v-for="u in filteredUsers" :key="u.id" :value="u.id">
-              {{ u.name }}
-            </option>
-          </select>
-        </div>
-        <div class="field">
-          <label>رقم الهوية <span style="color:var(--muted);font-weight:600;font-size:12px;">(اختياري — للتحقق فقط)</span></label>
+          <label>رقم الهوية</label>
           <input
             v-model="nationalId"
             inputmode="numeric"
-            placeholder="اختياري"
+            placeholder="رقم الهوية المسجل لدى المؤسسة"
             @keydown.enter="login"
           />
         </div>
@@ -179,19 +170,8 @@ onMounted(async () => {
 })
 
 async function fetchUsers() {
-  if (selectedRole.value === 'owner') {
-    // جيب الملاك في الـ dropdown
-    loadingUsers.value = true
-    usersList.value = []
-    try {
-      const users = await auth.usersByType('owner')
-      if (users.length) usersList.value = users
-    } catch {}
-    loadingUsers.value = false
-    return
-  }
+  if (selectedRole.value === 'owner') { usersList.value = []; return }
   loadingUsers.value = true
-  // عرض static فوراً
   usersList.value = STATIC_USERS[selectedRole.value] ?? []
   try {
     const users = await auth.usersByType(selectedRole.value)
@@ -214,13 +194,20 @@ function selectRole(role: string) {
 async function login() {
   error.value = ''
 
-  // Owner login — يختار من dropdown ويحط كلمة المرور
+  // Owner login — رقم الهوية + كلمة المرور مباشرة للـ API
   if (selectedRole.value === 'owner') {
-    if (!selectedUserId.value) { error.value = 'الرجاء اختيار حسابك من القائمة'; return }
-    if (!password.value)       { error.value = 'الرجاء إدخال كلمة المرور'; return }
+    if (!nationalId.value.trim()) { error.value = 'الرجاء إدخال رقم الهوية'; return }
+    if (!password.value)           { error.value = 'الرجاء إدخال كلمة المرور'; return }
     loading.value = true
     try {
-      const user = await doLogin(selectedUserId.value, password.value, 'owner')
+      const data = await auth.loginOwner({
+        login: nationalId.value.trim(),
+        password: password.value,
+      })
+      const { token: tk, user: us } = useAuth()
+      tk.value = data.token
+      us.value = data.user
+      if (import.meta.client) localStorage.setItem('tahsilat-user', JSON.stringify(data.user))
       navigateTo('/owner')
     } catch (e: any) {
       error.value = extractError(e)
