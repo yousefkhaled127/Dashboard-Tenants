@@ -17,6 +17,8 @@ export interface UserByType {
   display_name?: string
   name_with_type?: string
   label?: string
+  national_id?: string   // رقم الهوية — يُرسَل من الـ API لحساب المالك
+  phone?: string
 }
 
 export interface AuthUser {
@@ -427,6 +429,13 @@ export function useApi() {
       req<LoginResponse>('/auth/login', {
         method: 'POST',
         body: { device_name: 'web', ...body },
+      }),
+
+    /** owner login برقم الهوية مباشرة — يُرسَل national_id بدل user_id */
+    loginOwner: (body: { national_id: string; password: string }) =>
+      req<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: { device_name: 'web', type: 'owner', ...body },
       }),
 
     me: () => req<AuthUser>('/auth/me'),

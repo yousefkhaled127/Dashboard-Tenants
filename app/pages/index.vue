@@ -47,14 +47,23 @@
         </button>
       </div>
 
-      <!-- Owner: login by national ID -->
+      <!-- Owner: login by national ID or dropdown -->
       <template v-if="selectedRole === 'owner'">
         <div class="field">
-          <label>رقم الهوية</label>
+          <label>اختر حسابك</label>
+          <select v-model="selectedUserId">
+            <option :value="null">{{ loadingUsers ? 'جارٍ التحميل...' : 'اختر اسمك' }}</option>
+            <option v-for="u in filteredUsers" :key="u.id" :value="u.id">
+              {{ u.name }}
+            </option>
+          </select>
+        </div>
+        <div class="field">
+          <label>رقم الهوية <span style="color:var(--muted);font-weight:600;font-size:12px;">(اختياري — للتحقق فقط)</span></label>
           <input
             v-model="nationalId"
             inputmode="numeric"
-            placeholder="رقم الهوية المسجل لدى المؤسسة"
+            placeholder="اختياري"
             @keydown.enter="login"
           />
         </div>
@@ -170,7 +179,17 @@ onMounted(async () => {
 })
 
 async function fetchUsers() {
-  if (selectedRole.value === 'owner') { usersList.value = []; return }
+  if (selectedRole.value === 'owner') {
+    // جيب الملاك في الـ dropdown
+    loadingUsers.value = true
+    usersList.value = []
+    try {
+      const users = await auth.usersByType('owner')
+      if (users.length) usersList.value = users
+    } catch {}
+    loadingUsers.value = false
+    return
+  }
   loadingUsers.value = true
   // عرض static فوراً
   usersList.value = STATIC_USERS[selectedRole.value] ?? []
@@ -195,27 +214,15 @@ function selectRole(role: string) {
 async function login() {
   error.value = ''
 
-  // Owner login uses national_id
+  // Owner login — يختار من dropdown ويحط كلمة المرور
   if (selectedRole.value === 'owner') {
-    if (!nationalId.value.trim()) { error.value = 'الرجاء إدخال رقم الهوية'; return }
-    if (!password.value)           { error.value = 'الرجاء إدخال كلمة المرور'; return }
+    if (!selectedUserId.value) { error.value = 'الرجاء اختيار حسابك من القائمة'; return }
+    if (!password.value)       { error.value = 'الرجاء إدخال كلمة المرور'; return }
     loading.value = true
     try {
-      // جلب قائمة الملاك والبحث برقم الهوية
-      const ownerUsers = await auth.usersByType('owner').catch(() => [])
-      const matched = ownerUsers.find(u =>
-        u.national_id === nationalId.value.trim() ||
-        u.username    === `owner_${nationalId.value.trim()}`
-      )
-      if (!matched) {
-        error.value = 'رقم الهوية غير مسجل لدى المؤسسة'
-        loading.value = false
-        return
-      }
-      await doLogin(matched.id, password.value, 'owner')
+      const user = await doLogin(selectedUserId.value, password.value, 'owner')
       navigateTo('/owner')
     } catch (e: any) {
-      console.error('owner login error:', e?.data || e)
       error.value = extractError(e)
     } finally {
       loading.value = false
@@ -231,6 +238,7 @@ async function login() {
   try {
     const user = await doLogin(selectedUserId.value, password.value, selectedRole.value)
     const t = user.type
+    console.log(user)
     if (t === 'owner') {
       navigateTo('/owner')
     } else if (t === 'collector') {
