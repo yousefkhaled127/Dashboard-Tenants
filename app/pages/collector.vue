@@ -192,7 +192,29 @@ async function logout() {
 .nav-btn { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; color:#D8D3CC; font-weight:700; font-size:13px; text-decoration:none; transition:.15s; }
 .nav-btn:hover { background:rgba(255,255,255,.07); color:#fff; }
 .nav-btn.active { background:#E1712F; color:#fff; }
-.nav-badge { margin-right:auto; background:#B3452F; color:#fff; font-size:10px; font-weight:800; border-radius:20px; padding:1px 7px; }
+
+.nav-badge {
+  margin-right: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 20px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  animation: badgePop .25s ease;
+}
+@keyframes badgePop {
+  0%   { transform: scale(0); }
+  80%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
 .sync-box { padding-top:10px; flex-shrink:0; }
 .sync-btn { width:100%; background:rgba(225,113,47,.18); border:none; color:#F3C7A6; padding:9px 12px; border-radius:9px; font-weight:700; font-size:12.5px; margin-bottom:6px; cursor:pointer; font-family:inherit; transition:.15s; }
 .sync-btn:hover { background:rgba(225,113,47,.32); color:#fff; }

@@ -143,7 +143,9 @@ function getNow() {
   return new Date().toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit' })
 }
 
-const pendingCount = ref(0)
+const pendingCount        = ref(0)
+const pendingOwnerPays    = ref(0)   // سدادات الملاك الجديدة
+let   _pollTimer: ReturnType<typeof setInterval> | null = null
 
 async function refresh() {
   await fetchDashboardData()
@@ -180,6 +182,19 @@ onMounted(async () => {
   await fetchDashboardData()
 })
 
+// ── polling كل 10 ثواني لتحديث الـ badges ──
+onMounted(() => {
+  _pollTimer = setInterval(() => fetchDashboardData(), 10000)
+})
+onUnmounted(() => {
+  if (_pollTimer) clearInterval(_pollTimer)
+})
+
+// ── تحديث الـ badges عند التنقل بين الصفحات ──
+watch(() => useRoute().path, () => {
+  fetchDashboardData()
+})
+
 // ── toast ──
 const toast = ref('')
 function showToastMsg(msg: string) {
@@ -188,6 +203,9 @@ function showToastMsg(msg: string) {
 }
 provide('showToast', showToastMsg)
 provide('supervisorSession', session)
+// ── provide pendingCount عشان الصفحات الفرعية تقدر تحدّثه فور رفع سداد ──
+provide('refreshBadges', fetchDashboardData)
+provide('pendingCount', pendingCount)
 
 // ── nav ──
 const navItems = computed(() => [
@@ -261,8 +279,26 @@ async function logout() {
 .nav-btn.active { background:#E1712F; color:#fff; }
 
 .nav-badge {
-  margin-right:auto; background:#B3452F; color:#fff;
-  font-size:10px; font-weight:800; border-radius:20px; padding:1px 7px;
+  margin-right: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 20px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  animation: badgePop .25s ease;
+}
+@keyframes badgePop {
+  0%   { transform: scale(0); }
+  80%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
 }
 
 /* Sync */

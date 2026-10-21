@@ -124,7 +124,8 @@ import { useFormat } from '~/composables/useFormat'
 
 const { manager: supervisor } = useApi()
 const { fmtMoney } = useFormat()
-const showToast = inject<(m: string) => void>('showToast', () => {})
+const showToast      = inject<(m: string) => void>('showToast', () => {})
+const refreshBadges  = inject<() => void>('refreshBadges', () => {})
 
 const tab = ref<'pending' | 'all'>('pending')
 const searchQ = ref('')
@@ -161,6 +162,7 @@ async function confirmApprove() {
     showToast('تم اعتماد السداد')
     approvingId.value = null
     await fetchList()
+    refreshBadges()
   } catch { showToast('تعذّر الاعتماد') } finally {
     busy.value = null
   }
@@ -179,6 +181,7 @@ async function confirmReject() {
     showToast('تم رفض السداد')
     rejectingId.value = null
     await fetchList()
+    refreshBadges()
   } catch { showToast('تعذّر الرفض') } finally {
     busy.value = null
   }
@@ -228,6 +231,7 @@ async function confirmDelete() {
     showToast('تم حذف السداد')
     deletingId.value = null
     await fetchList()
+    refreshBadges()
   } catch { showToast('تعذّر الحذف') } finally {
     busy.value = null
   }

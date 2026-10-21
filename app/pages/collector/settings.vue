@@ -2,51 +2,51 @@
   <div>
     <div class="page-title"><div><h2>تغيير كلمة المرور</h2><p>خاصة بحسابك فقط</p></div></div>
     <div class="card" style="max-width:420px;">
-      <div v-if="error"   class="form-error">{{ error }}</div>
-      <div v-if="success" class="form-success">{{ success }}</div>
-      <div class="field"><label>كلمة المرور الحالية</label><input v-model="curPass" type="password" /></div>
-      <div class="field"><label>كلمة المرور الجديدة</label><input v-model="newPass" type="password" /></div>
-      <button class="btn btn-primary" @click="changePass">تحديث كلمة المرور</button>
+      <div v-if="success" style="background:var(--success-tint);color:var(--success);border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:14px;text-align:center;">{{ success }}</div>
+      <div v-if="error"   style="background:var(--danger-tint);color:var(--danger);border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;margin-bottom:14px;text-align:center;">{{ error }}</div>
+      <div class="field"><label>كلمة المرور الحالية</label><input v-model="curPass" type="password" placeholder="••••••••" @keydown.enter="changePass" /></div>
+      <div class="field"><label>كلمة المرور الجديدة</label><input v-model="newPass" type="password" placeholder="••••••••" @keydown.enter="changePass" /></div>
+      <div class="field"><label>تأكيد كلمة المرور</label><input v-model="confirmPass" type="password" placeholder="••••••••" @keydown.enter="changePass" /></div>
+      <button class="btn btn-primary" style="width:100%;" :disabled="saving" @click="changePass">
+        {{ saving ? 'جارٍ الحفظ...' : 'تحديث كلمة المرور' }}
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAppState } from '~/composables/useAppState'
+import { useAuth } from '~/composables/useAuth'
 
-const { state, load, save } = useAppState()
-onMounted(load)
+const { logout } = useAuth()
+const config = useRuntimeConfig()
+const curPass = ref(''); const newPass = ref(''); const confirmPass = ref('')
+const error = ref(''); const success = ref(''); const saving = ref(false)
+const showToast = inject<(m:string)=>void>('showToast', m => console.log(m))
 
-const session  = inject<Ref<{ id: string }>>('collectorSession', ref({ id: '' }))
-const curPass  = ref(''); const newPass = ref(''); const error = ref(''); const success = ref('')
-
-function changePass() {
+async function changePass() {
   error.value = ''; success.value = ''
-  const col = state.value.collectors.find(c => c.id === session.value.id)
-  if (!col)                              { error.value = 'المستخدم غير موجود'; return }
-  if (col.password !== curPass.value)    { error.value = 'كلمة المرور الحالية غير صحيحة'; return }
-  if (!newPass.value || newPass.value.length < 4) { error.value = 'كلمة المرور الجديدة قصيرة جدًا'; return }
-  col.password = newPass.value; save()
-  success.value = 'تم تحديث كلمة المرور بنجاح'
-  curPass.value = ''; newPass.value = ''
-  setTimeout(() => success.value = '', 3000)
+  if (!curPass.value)                        { error.value = 'الرجاء إدخال كلمة المرور الحالية'; return }
+  if (!newPass.value || newPass.value.length < 6) { error.value = 'كلمة المرور الجديدة 6 أحرف على الأقل'; return }
+  if (newPass.value !== confirmPass.value)   { error.value = 'كلمتا المرور غير متطابقتين'; return }
+  saving.value = true
+  try {
+    await $fetch(config.public.apiBase + '/auth/password/update', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${useCookie('tahsilat-token').value}`, 'Accept': 'application/json' },
+      body: { current_password: curPass.value, password: newPass.value, password_confirmation: confirmPass.value },
+    })
+    success.value = 'تم تحديث كلمة المرور — سيتم تسجيل خروجك'
+    showToast('تم تحديث كلمة المرور')
+    curPass.value = ''; newPass.value = ''; confirmPass.value = ''
+    setTimeout(async () => { await logout(); navigateTo('/') }, 2000)
+  } catch (e: any) {
+    const d = e?.data
+    if (d?.message) error.value = d.message
+    else if (d?.errors) { const k=Object.keys(d.errors)[0]; const v=d.errors[k]; error.value=Array.isArray(v)?v[0]:v }
+    else if (e?.status === 404) error.value = 'خاصية تغيير كلمة المرور غير متاحة حاليًا — تواصل مع المشرف'
+    else error.value = 'حدث خطأ غير متوقع'
+  } finally {
+    saving.value = false
+  }
 }
 </script>
-
-
-
-
-<style scoped>
-.page-title { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px; }
-.page-title h2 { margin:0; font-size:21px; font-weight:800; color:#3A3733; }
-.page-title p  { margin:2px 0 0; color:#8A8479; font-size:13px; }
-.card { background:#fff; border:1px solid #E6DFD3; border-radius:14px; padding:20px; }
-.field { margin-bottom:14px; }
-.field label { display:block; font-size:13px; color:#8A8479; margin-bottom:6px; font-weight:700; }
-.field input { width:100%; padding:11px 13px; border-radius:10px; border:1.5px solid #E6DFD3; background:#F3EFE8; color:#2E2B27; outline:none; font-family:inherit; font-size:14px; }
-.field input:focus { border-color:#E1712F; background:#fff; }
-.form-error   { background:#F7E7E2; color:#B3452F; border-radius:9px; padding:10px 12px; font-size:13px; font-weight:700; margin-bottom:14px; }
-.form-success { background:#E4F1E7; color:#3F7D52; border-radius:9px; padding:10px 12px; font-size:13px; font-weight:700; margin-bottom:14px; }
-.btn { border:none; border-radius:10px; padding:13px 18px; font-weight:800; font-size:14px; cursor:pointer; transition:.15s; width:100%; }
-.btn-primary { background:#E1712F; color:#fff; } .btn-primary:hover { background:#B85423; }
-</style>

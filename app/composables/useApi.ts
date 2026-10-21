@@ -440,6 +440,10 @@ export function useApi() {
 
     me: () => req<AuthUser>('/auth/me'),
     logout: () => req('/auth/logout', { method: 'POST' }),
+
+    /** تغيير كلمة المرور — يتطلب token سارٍ */
+    changePassword: (body: { current_password: string; password: string; password_confirmation: string }) =>
+      req('/auth/password/update', { method: 'POST', body }),
   }
 
   // ---------- GENERAL MANAGER (supervisor module — v2 prefix) ----------
