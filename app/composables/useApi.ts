@@ -533,6 +533,35 @@ export function useApi() {
     rejectNoticeRequest: (id: number, body: { rejection_reason: string }) =>
       req<NoticeRequest>(`/general-manager/notice-requests/${id}/reject`, { method: 'POST', body }),
 
+    // ─── Properties & Contracts ───────────────────────────────
+    properties: (params: { search?: string; owner_id?: number; period?: string } = {}, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') => {
+      const q = new URLSearchParams()
+      if (params.search)   q.set('search', params.search)
+      if (params.owner_id) q.set('owner_id', String(params.owner_id))
+      if (params.period)   q.set('period', params.period)
+      return req<PropertyListResponse>(`/${role}/properties?${q}`)
+    },
+    showProperty: (id: number, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req<PropertyDetailResponse>(`/${role}/properties/${id}`),
+    createProperty: (body: { owner_id: number; name: string; location?: string }, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req<PropertyItem>(`/${role}/properties`, { method: 'POST', body }),
+    updateProperty: (id: number, body: { owner_id?: number; name?: string; location?: string }, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req<PropertyItem>(`/${role}/properties/${id}`, { method: 'PUT', body }),
+    deleteProperty: (id: number, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req(`/${role}/properties/${id}`, { method: 'DELETE' }),
+
+    // Contract operations
+    contractOptions: (propertyId: number, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req<ContractOptionsResponse>(`/${role}/properties/${propertyId}/contracts/options`),
+    createContract: (propertyId: number, body: ContractCreateBody, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req<ContractItem>(`/${role}/properties/${propertyId}/contracts`, { method: 'POST', body }),
+    updateContract: (propertyId: number, contractId: number, body: Record<string, any>, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req<ContractItem>(`/${role}/properties/${propertyId}/contracts/${contractId}`, { method: 'PUT', body }),
+    terminateContract: (propertyId: number, contractId: number, body: { closure_reason: string }, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req<ContractItem>(`/${role}/properties/${propertyId}/contracts/${contractId}/terminate`, { method: 'POST', body }),
+    renewContract: (propertyId: number, contractId: number, body: ContractRenewBody, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') =>
+      req<ContractItem>(`/${role}/properties/${propertyId}/contracts/${contractId}/renew`, { method: 'POST', body }),
+
     // User management — Supervisors
     supervisors: (params: { search?: string; type?: string } = {}) => {
       const q = new URLSearchParams()
@@ -660,8 +689,80 @@ export function useApi() {
 }
 
 // ============================================================
-// ==================== VACANCIES TYPES ====================
+// ==================== PROPERTIES & CONTRACTS TYPES ===========
 // ============================================================
+export interface PropertyOwnerRef { id: number; name: string; username?: string; phone?: string; email?: string }
+export interface PropertyItem {
+  id: number; name: string; location: string
+  owner_id: number; owner_name: string; owner: PropertyOwnerRef
+  units_count: number; active_contracts_count: number
+  collected_this_month: number; collected_this_month_formatted: string
+  overdue_amount: number; overdue_amount_formatted: string
+  created_at: string; updated_at: string
+}
+export interface PropertyListResponse {
+  properties: PropertyItem[]
+  statistics: { properties_count: number; active_contracts_count: number; subtitle: string }
+  owners: { id: number; name: string }[]
+}
+export interface ActiveContract {
+  id: number; contract_number?: string; unit_number: string
+  tenant_name: string; tenant_phone: string; national_id: string
+  start_date_formatted: string; end_date_formatted: string
+  installment_cycle_formatted: string; total_amount_formatted: string
+  collected_amount_formatted: string; overdue_amount_formatted: string
+  status: string; status_label: string
+}
+export interface PropertyDetailResponse {
+  property: { id: number; name: string; location: string; owner_id: number; owner_name: string }
+  statistics: {
+    active_contracts_count: number; renewal_notice: string
+    active_contracts_total_value: number; active_contracts_total_value_formatted: string
+    active_contracts_collected: number; active_contracts_collected_formatted: string
+    collected_this_month: number; collected_this_month_formatted: string
+    total_overdue: number; total_overdue_formatted: string
+  }
+  active_contracts: ActiveContract[]
+  tenants_without_active_contract: any[]
+  previous_contracts: ActiveContract[]
+}
+export interface ContractOptionsResponse {
+  payment_cycles:        { value: string; label: string }[]
+  claim_generation_modes:{ value: string; label: string }[]
+  contract_statuses:     { value: string; label: string }[]
+  collectors:            { id: number; name: string }[]
+  tenants:               { id: number; tenant_number: string; name: string; phone: string; national_id: string; property_name: string; property_unit: string; display_label: string }[]
+}
+export interface ContractItem {
+  id: number; contract_number: string; unit_number: string
+  tenant_id?: number; tenant_name: string; tenant_phone: string; national_id: string
+  start_date: string; start_date_formatted: string
+  end_date: string; end_date_formatted: string
+  payment_cycle: string; payment_cycle_label: string
+  installment_amount: number; installment_amount_formatted: string
+  installment_cycle_formatted: string
+  total_amount: number; total_amount_formatted: string
+  collected_amount: number; collected_amount_formatted: string
+  overdue_amount: number; overdue_amount_formatted: string
+  claim_generation_mode?: string; claim_generation_mode_label?: string
+  status: string; status_label: string; notes?: string
+  closure_reason?: string
+}
+export interface ContractCreateBody {
+  is_new_tenant: boolean
+  tenant_id?: number
+  // new tenant fields
+  name?: string; phone?: string; national_id?: string; collector_id?: number
+  unit_number: string
+  start_date: string; end_date: string
+  total_amount: number; payment_cycle: string; installment_amount: number
+  claim_generation_mode: string; notes?: string
+}
+export interface ContractRenewBody {
+  start_date: string; end_date: string
+  total_amount: number; payment_cycle: string; installment_amount: number
+  claim_generation_mode: string; notes?: string
+}
 export interface VacancyItem {
   id: number
   property_id: number | null
