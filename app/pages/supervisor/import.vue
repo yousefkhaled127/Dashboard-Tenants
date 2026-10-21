@@ -66,8 +66,19 @@
                       <td>{{ row.owner_name||'—' }}</td>
                       <td>{{ row.monthly_target||0 }} ر.س</td>
                       <td>
-                        <span class="badge" :class="row._valid ? 'badge-approved' : 'badge-rejected'">
-                          {{ row._valid ? 'جاهز' : row._error||'خطأ' }}
+                        <span class="badge"
+                              :class="row._failed    ? 'badge-rejected'
+                                    : row._valid     ? 'badge-approved'
+                                    : row._unitTaken ? 'badge-pending'
+                                    : row._phoneTaken? 'badge-pending'
+                                    : 'badge-rejected'">
+                          {{
+                            row._failed     ? (row._error || 'فشل الاستيراد')
+                            : row._valid    ? 'جاهز'
+                            : row._unitTaken  ? 'الوحدة مستأجرة بالفعل'
+                            : row._phoneTaken ? 'رقم الجوال مكرر'
+                            : (row._error || 'خطأ')
+                          }}
                         </span>
                       </td>
                     </template>
@@ -102,15 +113,26 @@
 
         <!-- Result -->
         <!-- <template v-if="importResult">
-          <div class="result-box" style="margin-top:16px;">
-            <div style="font-weight:800;font-size:14px;margin-bottom:8px;">نتيجة الاستيراد</div>
-            <div class="kv"><span>إجمالي الصفوف</span><span>{{ importResult.total }}</span></div>
-            <div class="kv"><span>تمت الإضافة</span><span class="ok">{{ importResult.imported }}</span></div>
-            <div class="kv"><span>تم التحديث</span><span>{{ importResult.updated }}</span></div>
-            <div class="kv"><span>فشل</span><span :class="{ err: importResult.failed > 0 }">{{ importResult.failed }}</span></div>
-            <template v-if="importResult.errors.length">
-              <div style="margin-top:10px;font-size:12.5px;color:var(--danger);">
-                <div v-for="(e, i) in importResult.errors" :key="i">• {{ e }}</div>
+          <div style="margin-top:16px;background:var(--bg);border-radius:12px;padding:14px;">
+            <div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--charcoal);">نتيجة الاستيراد</div>
+            <div class="kv"><span class="k">إجمالي الصفوف</span><span class="v">{{ importResult.total }}</span></div>
+            <div class="kv"><span class="k">تمت الإضافة</span><span class="v" style="color:var(--success);">{{ importResult.imported }}</span></div>
+            <div class="kv"><span class="k">تم التحديث</span><span class="v">{{ importResult.updated }}</span></div>
+            <div class="kv" :style="importResult.errors?.length ? '' : 'border-bottom:none;'">
+              <span class="k">فشل</span>
+              <span class="v" :style="importResult.failed > 0 ? 'color:var(--danger);' : ''">{{ importResult.failed }}</span>
+            </div> -->
+            <!-- أسباب الفشل مفصّلة -->
+            <!-- <template v-if="importResult.errors?.length">
+              <div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
+                <div style="font-weight:800;font-size:12.5px;color:var(--danger);margin-bottom:6px;">
+                  أسباب الفشل ({{ importResult.errors.length }}):
+                </div>
+                <div v-for="(e, i) in importResult.errors" :key="i"
+                     style="display:flex;gap:6px;align-items:flex-start;font-size:12.5px;color:var(--danger);padding:5px 0;border-bottom:1px solid var(--danger-tint);">
+                  <span style="flex-shrink:0;font-weight:900;min-width:18px;">{{ i + 1 }}.</span>
+                  <span>{{ e }}</span>
+                </div>
               </div>
             </template>
           </div>
@@ -157,18 +179,56 @@ const previewRows  = ref<any[]>([])
 const importResult = ref<ImportResult | null>(null)
 
 // قوائم المحصلين والملاك للتحقق من الأسماء
-const collectorsList = ref<{id: number; name: string}[]>([])
-const ownersList     = ref<{id: number; name: string}[]>([])
+const collectorsList  = ref<{id: number; name: string}[]>([])
+const ownersList      = ref<{id: number; name: string}[]>([])
+const occupiedUnits   = ref<Set<string>>(new Set())   // الوحدات المستأجرة حالياً
+const existingPhones  = ref<Set<string>>(new Set())   // أرقام الجوال المسجّلة حالياً
 
 onMounted(async () => {
   try {
     const { auth } = useApi()
-    const [cols, owns] = await Promise.all([
+    const [cols, owns, tenantsData] = await Promise.all([
       auth.usersByType('collector'),
       auth.usersByType('owner'),
+      supervisor.tenants({ page: 1 }).catch(() => ({ tenants: [], pagination: { total:0, per_page:50, current_page:1, last_page:1 } })),
     ])
     collectorsList.value = cols.map(c => ({ id: c.id, name: c.name }))
     ownersList.value     = owns.map(o => ({ id: o.id, name: o.name }))
+
+    // جمع كل الوحدات المستأجرة حالياً (property_unit غير فارغة)
+    const units = new Set<string>()
+    tenantsData.tenants.forEach(t => {
+      if (t.property_unit) units.add(t.property_unit.trim().toLowerCase())
+    })
+    // لو في صفحات إضافية — جيبها كلها
+    if (tenantsData.pagination.last_page > 1) {
+      const pages = []
+      for (let p = 2; p <= tenantsData.pagination.last_page; p++) {
+        pages.push(supervisor.tenants({ page: p }).catch(() => ({ tenants: [] })))
+      }
+      const rest = await Promise.all(pages)
+      rest.forEach((d: any) => d.tenants?.forEach((t: any) => {
+        if (t.property_unit) units.add(t.property_unit.trim().toLowerCase())
+      }))
+    }
+    occupiedUnits.value = units
+
+    // جمع أرقام الجوال الموجودة حالياً في النظام
+    const phones = new Set<string>()
+    tenantsData.tenants.forEach(t => {
+      if (t.phone) phones.add(t.phone.trim().replace(/\s/g,''))
+    })
+    if (tenantsData.pagination.last_page > 1) {
+      const pages = []
+      for (let p = 2; p <= tenantsData.pagination.last_page; p++) {
+        pages.push(supervisor.tenants({ page: p }).catch(() => ({ tenants: [] })))
+      }
+      const rest2 = await Promise.all(pages)
+      rest2.forEach((d: any) => d.tenants?.forEach((t: any) => {
+        if (t.phone) phones.add(t.phone.trim().replace(/\s/g,''))
+      }))
+    }
+    existingPhones.value = phones
   } catch { /* تجاهل */ }
 })
 
@@ -220,6 +280,7 @@ async function parseFile() {
     const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
 
     if (activeTab.value === 'tenants') {
+      const seenPhonesInFile = new Set<string>()   // لكشف تكرار الجوال داخل الملف
       previewRows.value = json.map((r: any) => {
         const name     = String(r['اسم المستأجر'] || r['المستأجر'] || r['name'] || '').trim()
         const colName  = String(r['المحصل'] || r['collector'] || '').trim()
@@ -234,23 +295,40 @@ async function parseFile() {
           o => o.name.trim() === ownName
         )
 
+        // التحقق من إن الوحدة مش مستأجرة بالفعل
+        const unitVal   = String(r['العقار والوحدة'] || r['الوحدة'] || '').trim()
+        const unitTaken = !!unitVal && occupiedUnits.value.has(unitVal.toLowerCase())
+
+        // التحقق من تكرار رقم الجوال في النظام
+        const phoneVal    = String(r['رقم الجوال'] || r['الجوال'] || '').trim().replace(/\s/g,'')
+        const phoneTaken  = !!phoneVal && existingPhones.value.has(phoneVal)
+
+        // التحقق من تكرار الجوال داخل الملف نفسه
+        const phoneDupInFile = !!phoneVal && seenPhonesInFile.has(phoneVal)
+        if (phoneVal) seenPhonesInFile.add(phoneVal)
+
         let error = ''
-        if (!name)       error = 'الاسم مطلوب'
-        else if (!colName) error = 'المحصل مطلوب'
-        else if (!colFound) error = `لم يتم العثور على اسم المحصل: ${colName}`
+        if (!name)             error = 'الاسم مطلوب'
+        else if (!colName)     error = 'المحصل مطلوب'
+        else if (!colFound)    error = `لم يتم العثور على اسم المحصل: ${colName}`
         else if (ownName && !ownFound) error = `لم يتم العثور على اسم المالك: ${ownName}`
+        else if (unitTaken)    error = 'الوحدة مستأجرة بالفعل'
+        else if (phoneTaken)   error = 'رقم الجوال مكرر'
+        else if (phoneDupInFile) error = 'رقم الجوال مكرر في الملف'
 
         return {
           tenant_number:  String(r['رقم المستأجر'] || r['رقم'] || '').trim(),
           name,
-          phone:          String(r['رقم الجوال']   || r['الجوال']  || '').trim(),
-          property_unit:  String(r['العقار والوحدة']|| r['الوحدة'] || '').trim(),
+          phone:          phoneVal,
+          property_unit:  unitVal,
           due_date:       String(r['تاريخ الاستحقاق']|| r['الاستحقاق']|| '').trim(),
           collector_name: colName,
           owner_name:     ownName,
           monthly_target: Number(r['الهدف الشهري'] || r['الهدف'] || 0),
-          _valid: !!name && !!colName && colFound && (ownName ? ownFound : true),
+          _valid: !!name && !!colName && colFound && (ownName ? ownFound : true) && !unitTaken && !phoneTaken && !phoneDupInFile,
           _error: error,
+          _unitTaken: unitTaken,
+          _phoneTaken: phoneTaken || phoneDupInFile,
         }
       })
     } else {
@@ -288,11 +366,56 @@ async function doImport() {
   try {
     const fd = new FormData()
     fd.append('file', selectedFile.value)
-    importResult.value = await supervisor.importExcel(fd)
-    showToast('تم الاستيراد بنجاح')
-    selectedFile.value = null
-    previewRows.value  = []
-    if (fileInput.value) fileInput.value.value = ''
+    const result = await supervisor.importExcel(fd)
+    importResult.value = result
+
+    // ربط أسباب الفشل بالصفوف في الجدول
+    if (result.errors && result.errors.length) {
+      result.errors.forEach((errMsg: string) => {
+        // تحويل رسائل الخطأ الشائعة إلى عربي مفهوم
+        const friendlyMsg = errMsg
+          .replace(/.*phone.*(?:taken|duplicate|unique|مكرر).*/i,     'رقم الجوال مكرر')
+          .replace(/.*(?:phone|جوال).*(?:already|exists|موجود).*/i,   'رقم الجوال مكرر')
+          .replace(/.*(?:has already been taken|unique).*/i,           'رقم الجوال مكرر')
+
+        // صيغة 1: "الصف 3: ..." أو "Row 3: ..."
+        const rowMatch = errMsg.match(/(?:الصف|row)\s*(\d+)/i)
+        if (rowMatch) {
+          const rowIdx = parseInt(rowMatch[1]) - 1
+          if (previewRows.value[rowIdx]) {
+            previewRows.value[rowIdx]._valid   = false
+            previewRows.value[rowIdx]._failed  = true
+            previewRows.value[rowIdx]._error   = friendlyMsg !== errMsg
+              ? friendlyMsg
+              : errMsg.replace(/(?:الصف|row)\s*\d+\s*[:：]\s*/i, '').trim()
+            previewRows.value[rowIdx]._phoneTaken = /جوال|phone/i.test(errMsg)
+          }
+          return
+        }
+        // صيغة 2: ابحث بالاسم داخل رسالة الخطأ
+        const matchedRow = previewRows.value.find(r => r.name && errMsg.includes(r.name))
+        if (matchedRow) {
+          matchedRow._valid      = false
+          matchedRow._failed     = true
+          matchedRow._error      = friendlyMsg !== errMsg ? friendlyMsg : errMsg
+          matchedRow._phoneTaken = /جوال|phone/i.test(errMsg)
+        }
+      })
+    }
+
+    // الصفوف اللي نجحت — نمسح فقط اللي لم تفشل
+    if (result.failed === 0) {
+      // كل شيء نجح
+      showToast(`تم الاستيراد بنجاح — أُضيف ${result.imported} مستأجر`)
+      setTimeout(() => {
+        previewRows.value = []
+        selectedFile.value = null
+        if (fileInput.value) fileInput.value.value = ''
+      }, 3000)
+    } else {
+      showToast(`تم الاستيراد: ${result.imported} نجح، ${result.failed} فشل`)
+    }
+
   } catch (e: any) {
     const data = e?.data
     if (data?.errors) {
