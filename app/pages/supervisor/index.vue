@@ -113,6 +113,7 @@ async function loadData() {
     tenantsTotal.value   = tRes.pagination?.total ?? 0
     pendingCount.value   = pRes.tabs?.pending_count ?? 0
 
+
   } catch (e) { console.error('overview error:', e) }
 
   loading.value = false

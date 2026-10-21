@@ -106,7 +106,7 @@ import { useApi } from '~/composables/useApi'
 import { useAppState } from '~/composables/useAppState'
 
 const { user, fetchMe, requireRole, logout: authLogout } = useAuth()
-const { supervisor } = useApi()
+const { manager } = useApi()
 
 // useAppState فقط للصفحات التي لم تُربط بالـ API بعد (إشعارات/صيانة)
 const { load, pendingNoticeRequests, pendingNoticeDeliveries, pendingMaintReqCount } = useAppState()
@@ -154,14 +154,22 @@ async function refresh() {
 }
 
 async function fetchDashboardData() {
+  console.log('1. fetchDashboardData started')
+
   try {
-    const data = await supervisor.approvals({ tab: 'pending' })
-    pendingCount.value = data.tabs.pending_count
-  } catch { /* تجاهل */ }
-  // load useAppState للصفحات غير المرتبطة بالـ API
+const data = await manager.approvals({ tab: 'pending' })
+
+console.log('API response:', data)
+
+pendingCount.value = data.tabs.pending_count
+
+console.log('pendingCount:', pendingCount.value)
+  } catch (error) {
+    console.error('API Error:', error)
+  }
+
   load()
 }
-
 onMounted(async () => {
   // تطبيق الثيم المحفوظ
   try {
