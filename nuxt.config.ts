@@ -3,9 +3,12 @@ export default defineNuxtConfig({
 
   devtools: { enabled: false },
 
+  // ── Modules ──
+  modules: ['@pinia/nuxt'],
+
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://54f2-156-198-196-2.ngrok-free.app/api',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://5f0a-156-198-194-157.ngrok-free.app/api',
     },
   },
 
@@ -22,9 +25,9 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap'
-        }
-      ]
-    }
-  }
+          href: 'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap',
+        },
+      ],
+    },
+  },
 })

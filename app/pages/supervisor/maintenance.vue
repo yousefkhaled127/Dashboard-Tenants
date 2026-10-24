@@ -59,8 +59,9 @@
 import { useAppState } from '~/composables/useAppState'
 const { state, load, save, uid, fmtDate, ownerName, starsDisplay, addSms, fmtMoney } = useAppState()
 onMounted(load)
-const showToast = inject<(m:string)=>void>('showToast',()=>{})
-const session = typeof window!=='undefined' ? JSON.parse(localStorage.getItem('tahsilat-session')||'{}') : {}
+const showToast = inject<(m:string)=>void>('showToast', () => {})
+const supervisorSession = inject<any>('supervisorSession')
+const sessionId = computed(() => supervisorSession?.value?.id ?? '')
 const form = reactive({ ownerId:'', unit:'', title:'', description:'' })
 const media = ref<{type:string;data:string;name:string}[]>([])
 const sorted = computed(()=>[...state.value.maintenance].sort((a,b)=>b.sentAt.localeCompare(a.sentAt)))
@@ -78,7 +79,7 @@ function sendMaintenance(){
   if(!form.ownerId){ showToast('الرجاء اختيار المالك'); return }
   if(!form.title.trim()){ showToast('الرجاء إدخال عنوان العمل'); return }
   if(!media.value.length){ showToast('الرجاء إرفاق صورة أو فيديو واحد على الأقل'); return }
-  const mRec={ id:uid(), ownerId:form.ownerId, unit:form.unit.trim(), title:form.title.trim(), description:form.description.trim(), media:[...media.value], sentBy:session.id||'', sentAt:new Date().toISOString(), rating:null, ownerStatus:'pending' as const, ownerDecisionAt:null, ownerDecisionNote:'' }
+  const mRec={ id:uid(), ownerId:form.ownerId, unit:form.unit.trim(), title:form.title.trim(), description:form.description.trim(), media:[...media.value], sentBy:sessionId.value, sentAt:new Date().toISOString(), rating:null, ownerStatus:'pending' as const, ownerDecisionAt:null, ownerDecisionNote:'' }
   state.value.maintenance.push(mRec)
   media.value=[]
   const o=state.value.owners.find(x=>x.id===form.ownerId)

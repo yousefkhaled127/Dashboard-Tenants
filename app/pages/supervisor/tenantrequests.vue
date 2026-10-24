@@ -55,8 +55,9 @@
 import { useAppState } from '~/composables/useAppState'
 const { state, load, save, fmtDate, tenantName, ownerName, pendingMaintReqCount, addSms } = useAppState()
 onMounted(load)
-const showToast = inject<(m:string)=>void>('showToast',()=>{})
-const session = typeof window!=='undefined' ? JSON.parse(localStorage.getItem('tahsilat-session')||'{}') : {}
+const showToast = inject<(m:string)=>void>('showToast', () => {})
+const supervisorSession = inject<any>('supervisorSession')
+const sessionId = computed(() => supervisorSession?.value?.id ?? '')
 const tab = ref<'pending'|'all'>('pending')
 const pending = computed(()=>state.value.maintenanceRequests.filter(r=>r.status==='pending'))
 const displayList = computed(()=> tab.value==='pending' ? pending.value : [...state.value.maintenanceRequests].sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)))
@@ -69,7 +70,7 @@ function confirmReview(){
   if(reviewAction.value==='reject'&&!reviewNote.value.trim()){ showToast('الرجاء ذكر سبب الرفض'); return }
   if(reviewAction.value==='approve'&&!(r.idNumber&&r.birthDate&&r.phone&&r.ownerId&&r.unit)){ showToast('لا يمكن اعتماد الطلب إلا بعد اكتمال البيانات المطلوبة'); return }
   const status = reviewAction.value==='reject'?'rejected':'approved'
-  Object.assign(r,{ status, supervisorNote:reviewNote.value.trim(), decidedAt:new Date().toISOString(), decidedBy:session.id||'', ownerStatus: status==='approved'?'pending':'—' })
+  Object.assign(r,{ status, supervisorNote:reviewNote.value.trim(), decidedAt:new Date().toISOString(), decidedBy:sessionId.value, ownerStatus: status==='approved'?'pending':'—' })
   if(status==='approved'&&r.ownerId){
     const o=state.value.owners.find(x=>x.id===r.ownerId)
     addSms('owner',r.ownerId,o?.name||'',o?.phone||'',`🛠️ طلب صيانة جديد بانتظار موافقتكم: "${r.title||'طلب صيانة'}" في وحدة ${r.unit||'—'} (مستأجر: ${r.requesterName||'—'}). الرجاء مراجعته من داخل التطبيق.`,'maintreq_owner_review')
