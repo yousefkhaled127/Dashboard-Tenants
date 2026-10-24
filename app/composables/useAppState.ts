@@ -85,20 +85,9 @@ export interface AppState {
 
 // ==================== DEFAULT DATA ====================
 const DEFAULT: AppState = {
-  supervisors: [
-    { id: 'sup1', name: 'ابو حيدر',  password: 'Admin@123' },
-    { id: 'sup2', name: 'صديق', password: 'Admin@123' },
-    { id: 'sup3', name: 'المشرف الثالث', password: 'Admin@123' },
-  ],
-  collectors: [
-    { id: 'col1', name: 'عبد الرحمن',  password: '1234', phone: '' },
-    { id: 'col2', name: 'ابو عبد الله', password: '1234', phone: '' },
-    { id: 'col3', name: 'ياسر', password: '1234', phone: '' },
-  ],
-  owners: [
-    { id: 'own1', name: 'المالك الأول',  password: '1234', phone: '' },
-    { id: 'own2', name: 'المالك الثاني', password: '1234', phone: '' },
-  ],
+  supervisors: [],
+  collectors:  [],
+  owners:      [],
   tenants: [], payments: [], notices: [], properties: [],
   maintenance: [], maintenanceRequests: [], orgRatings: [], smsLog: [],
 }

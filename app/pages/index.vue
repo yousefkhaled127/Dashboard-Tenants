@@ -121,25 +121,12 @@ function toggleTheme() {
 }
 
 // ===== STATIC FALLBACK DATA =====
+// الأدوار ثابتة — لا نجلبها من API
 const STATIC_ROLES: Role[] = [
   { value: 'supervisor', label: 'مشرف' },
   { value: 'collector',  label: 'محصل' },
   { value: 'owner',      label: 'مالك' },
 ]
-
-const STATIC_USERS: Record<string, UserByType[]> = {
-  supervisor: [
-    { id: 1, value: 1, name: 'المشرف العام', username: 'admin', type: 'general_manager', type_label: 'مشرف عام', display_name: 'المشرف العام – مشرف عام' },
-    { id: 2, value: 2, name: 'مشرف العقارات', username: 'realestate_supervisor', type: 'real_estate_supervisor', type_label: 'مشرف عقارات', display_name: 'مشرف العقارات – مشرف عقارات' },
-    { id: 3, value: 3, name: 'مشرف التحصيل والمتابعة', username: 'collection_supervisor', type: 'collection_supervisor', type_label: 'مشرف تحصيل ومتابعة', display_name: 'مشرف التحصيل والمتابعة – مشرف تحصيل ومتابعة' },
-    { id: 4, value: 4, name: 'مشرف الصيانة', username: 'maint1', type: 'maintenance_supervisor', type_label: 'مشرف صيانة', display_name: 'مشرف الصيانة – مشرف صيانة' },
-  ],
-  collector: [
-    { id: 6, value: 6, name: 'المحصل الأول',  username: 'collector_1', type: 'collector', type_label: 'محصل', display_name: 'المحصل الأول' },
-    { id: 7, value: 7, name: 'المحصل الثاني', username: 'collector_2', type: 'collector', type_label: 'محصل', display_name: 'المحصل الثاني' },
-  ],
-  owner: [],
-}
 
 // ===== STATE =====
 const selectedRole   = ref('supervisor')
@@ -149,7 +136,7 @@ const password       = ref('')
 const error          = ref('')
 const loading        = ref(false)
 const loadingUsers   = ref(false)
-const usersList      = ref<UserByType[]>(STATIC_USERS['supervisor'])
+const usersList      = ref<UserByType[]>([])
 
 const availableRoles = ref<Role[]>(STATIC_ROLES)
 const filteredUsers  = computed(() => usersList.value)
@@ -172,7 +159,7 @@ onMounted(async () => {
 async function fetchUsers() {
   if (selectedRole.value === 'owner') { usersList.value = []; return }
   loadingUsers.value = true
-  usersList.value = STATIC_USERS[selectedRole.value] ?? []
+  usersList.value = []
   try {
     const users = await auth.usersByType(selectedRole.value)
     if (users.length) usersList.value = users
@@ -186,7 +173,7 @@ function selectRole(role: string) {
   nationalId.value     = ''
   password.value       = ''
   error.value          = ''
-  usersList.value = STATIC_USERS[role] ?? []
+  usersList.value      = []
   fetchUsers()
 }
 
