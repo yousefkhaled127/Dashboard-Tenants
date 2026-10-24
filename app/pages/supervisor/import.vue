@@ -73,11 +73,11 @@
                                     : row._phoneTaken? 'badge-pending'
                                     : 'badge-rejected'">
                           {{
-                            row._failed     ? (row._error || 'فشل الاستيراد')
+                            row._failed     ? translateError(row._error || 'فشل الاستيراد')
                             : row._valid    ? 'جاهز'
                             : row._unitTaken  ? 'الوحدة مستأجرة بالفعل'
                             : row._phoneTaken ? 'رقم الجوال مكرر'
-                            : (row._error || 'خطأ')
+                            : translateError(row._error || 'خطأ')
                           }}
                         </span>
                       </td>
@@ -112,7 +112,7 @@
         </template>
 
         <!-- Result -->
-        <!-- <template v-if="importResult">
+        <template v-if="importResult">
           <div style="margin-top:16px;background:var(--bg);border-radius:12px;padding:14px;">
             <div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--charcoal);">نتيجة الاستيراد</div>
             <div class="kv"><span class="k">إجمالي الصفوف</span><span class="v">{{ importResult.total }}</span></div>
@@ -121,9 +121,9 @@
             <div class="kv" :style="importResult.errors?.length ? '' : 'border-bottom:none;'">
               <span class="k">فشل</span>
               <span class="v" :style="importResult.failed > 0 ? 'color:var(--danger);' : ''">{{ importResult.failed }}</span>
-            </div> -->
+            </div>
             <!-- أسباب الفشل مفصّلة -->
-            <!-- <template v-if="importResult.errors?.length">
+            <template v-if="importResult.errors?.length">
               <div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">
                 <div style="font-weight:800;font-size:12.5px;color:var(--danger);margin-bottom:6px;">
                   أسباب الفشل ({{ importResult.errors.length }}):
@@ -131,12 +131,12 @@
                 <div v-for="(e, i) in importResult.errors" :key="i"
                      style="display:flex;gap:6px;align-items:flex-start;font-size:12.5px;color:var(--danger);padding:5px 0;border-bottom:1px solid var(--danger-tint);">
                   <span style="flex-shrink:0;font-weight:900;min-width:18px;">{{ i + 1 }}.</span>
-                  <span>{{ e }}</span>
+                  <span>{{ translateError(e) }}</span>
                 </div>
               </div>
             </template>
           </div>
-        </template> -->
+        </template>
       </div>
 
       <!-- RIGHT: notes -->
@@ -350,15 +350,28 @@ async function parseFile() {
 
     if (!previewRows.value.length) showToast('الملف فارغ أو لا توجد بيانات مقروءة')
 
-  } catch (e) {
-    console.error('parse error:', e)
+  } catch {
     showToast('تعذّر قراءة الملف — تأكد من الصيغة')
   } finally {
     parsing.value = false
   }
 }
 
-// ── send to API ──
+// ── تحويل رسائل الخطأ إلى عربي مفهوم ──
+function translateError(msg: any): string {
+  // لو object → حاول تحوّله لـ string أولاً
+  if (msg && typeof msg === 'object') {
+    const vals = Object.values(msg).flat()
+    msg = vals.join(' — ')
+  }
+  const s = String(msg || '')
+  if (/phone.*(?:taken|duplicate|unique|مكرر)|(?:has already been taken)/i.test(s)) return 'رقم الجوال مكرر'
+  if (/(?:phone|جوال).*(?:already|exists|موجود)/i.test(s))                          return 'رقم الجوال مكرر'
+  if (/unit.*(?:taken|occupied|مستأجر)|الوحدة.*مستأجر/i.test(s))                    return 'الوحدة مستأجرة بالفعل'
+  if (/name.*required|الاسم.*مطلوب/i.test(s))                                       return 'الاسم مطلوب'
+  if (/collector.*(?:not found|غير موجود)/i.test(s))                                return 'المحصل غير موجود'
+  return s || 'خطأ في الاستيراد'
+}
 async function doImport() {
   if (!selectedFile.value) return
   importing.value = true
@@ -373,10 +386,7 @@ async function doImport() {
     if (result.errors && result.errors.length) {
       result.errors.forEach((errMsg: string) => {
         // تحويل رسائل الخطأ الشائعة إلى عربي مفهوم
-        const friendlyMsg = errMsg
-          .replace(/.*phone.*(?:taken|duplicate|unique|مكرر).*/i,     'رقم الجوال مكرر')
-          .replace(/.*(?:phone|جوال).*(?:already|exists|موجود).*/i,   'رقم الجوال مكرر')
-          .replace(/.*(?:has already been taken|unique).*/i,           'رقم الجوال مكرر')
+        const friendlyMsg = translateError(errMsg)
 
         // صيغة 1: "الصف 3: ..." أو "Row 3: ..."
         const rowMatch = errMsg.match(/(?:الصف|row)\s*(\d+)/i)
@@ -418,13 +428,17 @@ async function doImport() {
 
   } catch (e: any) {
     const data = e?.data
+    let msg = 'تعذّر استيراد الملف'
     if (data?.errors) {
       const firstKey = Object.keys(data.errors)[0]
-      const msg = Array.isArray(data.errors[firstKey]) ? data.errors[firstKey][0] : data.errors[firstKey]
-      showToast(msg || data.message || 'تعذّر استيراد الملف')
-    } else {
-      showToast(data?.message || e?.message || 'تعذّر استيراد الملف')
+      const raw = data.errors[firstKey]
+      msg = translateError(Array.isArray(raw) ? raw[0] : raw) || data.message || msg
+    } else if (data?.message) {
+      msg = data.message
+    } else if (e?.message) {
+      msg = e.message
     }
+    showToast(msg)
   } finally {
     importing.value = false
   }

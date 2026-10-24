@@ -195,7 +195,7 @@ const { extState, load, save, uid, lsOffice, ftLive, ftByListing, getListing } =
 const { fmtDate, fmtMoney, todayISO } = useFormat()
 const { auth } = useApi()
 const router = useRouter()
-const showToast = inject<(m:string)=>void>('showToast', m=>console.log(m))
+const showToast = inject<(m:string)=>void>('showToast', () => {})
 const supervisorSession = inject<any>('supervisorSession')
 
 onMounted(async () => {

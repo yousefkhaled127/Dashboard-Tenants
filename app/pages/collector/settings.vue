@@ -21,7 +21,7 @@ const { logout } = useAuth()
 const config = useRuntimeConfig()
 const curPass = ref(''); const newPass = ref(''); const confirmPass = ref('')
 const error = ref(''); const success = ref(''); const saving = ref(false)
-const showToast = inject<(m:string)=>void>('showToast', m => console.log(m))
+const showToast = inject<(m:string)=>void>('showToast', () => {})
 
 async function changePass() {
   error.value = ''; success.value = ''

@@ -294,7 +294,7 @@ const { auth } = useApi()
 const route  = useRoute()
 const router = useRouter()
 
-const showToast = inject<(m:string)=>void>('showToast', m => console.log(m))
+const showToast = inject<(m:string)=>void>('showToast', () => {})
 const supervisorSession = inject<any>('supervisorSession')
 
 onMounted(async () => {

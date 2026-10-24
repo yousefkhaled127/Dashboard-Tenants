@@ -273,7 +273,7 @@ const { extState, load, save, uid, lsOffice, exAll, exPendingCount, lsNextCode, 
 const { fmtDate, fmtMoney, todayISO } = useFormat()
 const { auth } = useApi()
 
-const showToast = inject<(m:string)=>void>('showToast', m => console.log(m))
+const showToast = inject<(m:string)=>void>('showToast', () => {})
 const supervisorSession = inject<any>('supervisorSession')
 
 onMounted(async () => {

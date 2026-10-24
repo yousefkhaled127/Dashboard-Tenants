@@ -174,7 +174,6 @@ export function useAppState() {
   const collectorName  = (id: string) => state.value.collectors.find(c => c.id === id)?.name  ?? '—'
   const ownerName      = (id: string) => state.value.owners.find(o => o.id === id)?.name       ?? '—'
   const tenantName     = (id: string) => state.value.tenants.find(t => t.id === id)?.name      ?? '—'
-  const supervisorName = (id: string) => state.value.supervisors.find(s => s.id === id)?.name  ?? '—'
   const getTenant      = (id: string) => state.value.tenants.find(t => t.id === id) ?? null
 
   // ---------- payment helpers ----------
@@ -231,12 +230,6 @@ export function useAppState() {
       .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
 
   // ---------- org rating ----------
-  const orgRatingAvg = computed(() => {
-    const list = state.value.orgRatings
-    if (!list.length) return 0
-    return list.reduce((s, r) => s + r.stars, 0) / list.length
-  })
-
   const starsDisplay = (n: number) => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n))
 
   // ---------- SMS ----------
@@ -251,20 +244,17 @@ export function useAppState() {
   const paymentTypeLabel = (t: string) =>
     ({ cash: 'كاش بالمكتب', platform: 'سداد بالمنصة', transfer: 'تحويل بنكي' } as any)[t] ?? t
 
-  const maintReportNum = (sentAt: string) =>
-    'MR-' + sentAt.replace(/[^0-9]/g, '').slice(0, 12)
-
   return {
     state, load, save, uid,
     monthKey, monthLabel, fmtDate, fmtMoney, todayISO, lastNMonths,
-    collectorName, ownerName, tenantName, supervisorName, getTenant,
+    collectorName, ownerName, tenantName, getTenant,
     approvedPayments, pendingPayments,
     collectedForMonth, collectedForTenantMonth, targetForCollector,
     myTenants, ownerTenants, collectorAlerts,
     pendingNoticeRequests, pendingNoticeDeliveries, pendingMaintReqCount,
     ownerMaintenance, acceptedMaintenance,
-    orgRatingAvg, starsDisplay,
-    addSms, paymentTypeLabel, maintReportNum,
+    starsDisplay,
+    addSms, paymentTypeLabel,
   }
 }
 

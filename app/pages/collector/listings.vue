@@ -221,16 +221,15 @@
 </template>
 
 <script setup lang="ts">
-import { useListingsApi, useExtState, LS_DEFAULT_PLATFORMS, type Listing } from '~/composables/useAppState'
+import { useExtState, LS_DEFAULT_PLATFORMS, type Listing } from '~/composables/useAppState'
 import { useListingsApi as useListApi } from '~/composables/useApi'
-import { useExtState as useExt } from '~/composables/useAppState'
 import { useFormat } from '~/composables/useFormat'
 
 const listApi    = useListApi()
-const { extState, load: loadLocal, save: saveLocal, lsOffice, exAll, lsNextCode, exNextCode } = useExt()
+const { extState, load: loadLocal, save: saveLocal, lsOffice, exAll, lsNextCode, exNextCode } = useExtState()
 const { fmtDate, fmtMoney, todayISO } = useFormat()
 const router     = useRouter()
-const showToast  = inject<(m:string)=>void>('showToast', m => console.log(m))
+const showToast  = inject<(m:string)=>void>('showToast', () => {})
 const colSession = inject<any>('collectorSession')
 
 const myId       = computed(() => colSession?.value?.id || '')

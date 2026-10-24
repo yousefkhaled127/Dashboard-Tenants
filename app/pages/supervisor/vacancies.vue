@@ -351,7 +351,7 @@ const { extState, load, save, uid, vacanciesSorted, vacantCount, vacPropName } =
 const { fmtDate, fmtMoney, todayISO, monthKey, lastNMonths } = useFormat()
 const { auth } = useApi()
 
-const showToast = inject<(m:string)=>void>('showToast', (m)=>console.log(m))
+const showToast = inject<(m:string)=>void>('showToast', () => {})
 
 // ===== COLLECTORS =====
 const collectorsFromApi = ref<{id:number;name:string}[]>([])

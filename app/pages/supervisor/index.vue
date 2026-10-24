@@ -114,7 +114,7 @@ async function loadData() {
     pendingCount.value   = pRes.tabs?.pending_count ?? 0
 
 
-  } catch (e) { console.error('overview error:', e) }
+  } catch { /* silent */ }
 
   loading.value = false
 }

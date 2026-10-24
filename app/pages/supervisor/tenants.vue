@@ -320,10 +320,8 @@ async function fetchList() {
       period: mk,
       page: currentPage.value,
     })
-    console.log(listData.value)
   } catch (e: any) {
     const msg = e?.data?.message || e?.message || 'تعذّر جلب قائمة المستأجرين'
-    console.error('fetchList error:', e?.data || e)
     showToast(msg)
   }
 }
@@ -471,7 +469,6 @@ async function saveTenant() {
     currentPage.value = 1
     await fetchList()
   } catch (e: any) {
-    console.error('saveTenant error:', e?.data || e)
     const data = e?.data
     if (data?.errors) {
       // Laravel validation errors

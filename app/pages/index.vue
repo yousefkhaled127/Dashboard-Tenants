@@ -225,7 +225,6 @@ async function login() {
   try {
     const user = await doLogin(selectedUserId.value, password.value, selectedRole.value)
     const t = user.type
-    console.log(user)
     if (t === 'owner') {
       navigateTo('/owner')
     } else if (t === 'collector') {

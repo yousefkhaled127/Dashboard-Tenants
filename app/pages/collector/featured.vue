@@ -189,7 +189,7 @@ const featApi    = useFeaturedApi()
 const { extState, load: loadLocal, save: saveLocal, ftLive, getListing } = useExtState()
 const { fmtDate, fmtMoney, todayISO } = useFormat()
 const router     = useRouter()
-const showToast  = inject<(m:string)=>void>('showToast', m => console.log(m))
+const showToast  = inject<(m:string)=>void>('showToast', () => {})
 const colSession = inject<any>('collectorSession')
 
 const myId       = computed(() => colSession?.value?.id || '')

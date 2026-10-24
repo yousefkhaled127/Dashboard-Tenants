@@ -252,7 +252,7 @@ const vacApi = useVacanciesApi()
 const { extState, load: loadLocal, save: saveLocal, vacPropName } = useExtState()
 const { fmtDate, fmtMoney, todayISO, monthKey, lastNMonths } = useFormat()
 
-const showToast   = inject<(m:string)=>void>('showToast', m => console.log(m))
+const showToast   = inject<(m:string)=>void>('showToast', () => {})
 const colSession  = inject<any>('collectorSession')
 const myId        = computed(() => colSession?.value?.id || '')
 const collectorName = computed(() => colSession?.value?.name || 'المحصل')
