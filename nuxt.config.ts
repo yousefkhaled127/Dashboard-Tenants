@@ -8,11 +8,14 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://5f0a-156-198-194-157.ngrok-free.app/api',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://69.62.121.142:8091/api',
     },
   },
 
-  css: ['~/assets/css/main.css'],
+  css: [
+    '~/assets/css/main.css',
+    'leaflet/dist/leaflet.css',
+  ],
 
   app: {
     head: {

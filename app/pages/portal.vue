@@ -74,6 +74,41 @@
           <textarea v-model="form.description" placeholder="اشرح المشكلة بالتفصيل..." />
         </div>
 
+        <!-- ===== MAP LOCATION ===== -->
+        <div class="field">
+          <label>موقع العقار على الخريطة <span style="color:#8A8479;font-weight:400;">(يساعد فريق الصيانة للوصول بدقة)</span></label>
+
+          <!-- Search bar -->
+          <div class="map-search-wrap">
+            <input
+              v-model="mapQuery"
+              class="map-search-input"
+              placeholder="ابحث عن حي، شارع، أو معلم قريب..."
+              @keydown.enter.prevent="searchMap"
+            />
+            <button class="map-search-btn" @click="searchMap" :disabled="mapSearching">
+              {{ mapSearching ? '...' : '🔍' }}
+            </button>
+          </div>
+
+          <!-- Map container -->
+          <div id="portal-map" class="portal-map-box"></div>
+
+          <!-- GPS button + status -->
+          <div class="map-actions">
+            <button class="map-gps-btn" @click="getMyLocation" :disabled="mapSearching">
+              📍 تحديد موقعي تلقائياً
+            </button>
+            <div v-if="mapLocation.address" class="map-selected">
+              <span>✓ تم تحديد الموقع:</span>
+              <span class="map-addr">{{ mapLocation.address }}</span>
+            </div>
+            <div v-else class="map-not-set">
+              لم يتم تحديد الموقع بعد — اضغط على الخريطة أو اسحب الدبوس لتحديد الموقع بدقة
+            </div>
+          </div>
+        </div>
+
         <div class="field">
           <label>صور أو فيديوهات (اختياري، الحد الأقصى 15MB لكل ملف)</label>
           <div
@@ -177,6 +212,104 @@ const fileInput   = ref<HTMLInputElement | null>(null)
 const trackId    = ref('')
 const trackPhone = ref('')
 
+// ===== MAP STATE =====
+const mapQuery    = ref('')
+const mapSearching = ref(false)
+const mapLocation = reactive({ lat: 0, lng: 0, address: '' })
+let _map: any = null
+let _marker: any = null
+
+async function initMap() {
+  if (!import.meta.client) return
+  // Dynamic import Leaflet (no SSR)
+  const L = (await import('leaflet')).default
+  // Fix default icon paths
+  delete (L.Icon.Default.prototype as any)._getIconUrl
+  L.Icon.Default.mergeOptions({
+    iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  })
+
+  _map = L.map('portal-map', { zoomControl: true }).setView([24.7136, 46.6753], 12)
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19,
+  }).addTo(_map)
+
+  _marker = L.marker([24.7136, 46.6753], { draggable: true }).addTo(_map)
+
+  // Click on map → move marker
+  _map.on('click', (e: any) => {
+    const { lat, lng } = e.latlng
+    _marker.setLatLng([lat, lng])
+    reverseGeocode(lat, lng)
+  })
+
+  // Drag marker → update coords
+  _marker.on('dragend', () => {
+    const { lat, lng } = _marker.getLatLng()
+    reverseGeocode(lat, lng)
+  })
+}
+
+async function reverseGeocode(lat: number, lng: number) {
+  mapLocation.lat = lat
+  mapLocation.lng = lng
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ar`,
+      { headers: { 'User-Agent': 'TCMS-Portal/1.0' } }
+    )
+    const data = await res.json()
+    mapLocation.address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+  } catch {
+    mapLocation.address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+  }
+}
+
+async function searchMap() {
+  const q = mapQuery.value.trim()
+  if (!q || !_map) return
+  mapSearching.value = true
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&accept-language=ar`,
+      { headers: { 'User-Agent': 'TCMS-Portal/1.0' } }
+    )
+    const results = await res.json()
+    if (results.length) {
+      const { lat, lon, display_name } = results[0]
+      const latlng: [number, number] = [parseFloat(lat), parseFloat(lon)]
+      _map.setView(latlng, 16)
+      _marker.setLatLng(latlng)
+      mapLocation.lat     = latlng[0]
+      mapLocation.lng     = latlng[1]
+      mapLocation.address = display_name
+    }
+  } catch { /* silent */ } finally {
+    mapSearching.value = false
+  }
+}
+
+function getMyLocation() {
+  if (!navigator.geolocation) return
+  mapSearching.value = true
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const { latitude: lat, longitude: lng } = pos.coords
+      if (_map && _marker) {
+        _map.setView([lat, lng], 16)
+        _marker.setLatLng([lat, lng])
+      }
+      await reverseGeocode(lat, lng)
+      mapSearching.value = false
+    },
+    () => { mapSearching.value = false }
+  )
+}
+
 // ===== REQUESTS (localStorage) =====
 const requests = ref<any[]>([])
 
@@ -185,6 +318,8 @@ onMounted(() => {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) requests.value = JSON.parse(raw)
   } catch {}
+  // تهيئة الخريطة بعد render
+  nextTick(() => initMap())
 })
 
 function saveRequests() {
@@ -247,6 +382,10 @@ function submitRequest() {
     status:       'pending',
     supervisorNote: '',
     requestedAt:  new Date().toISOString(),
+    // موقع الخريطة
+    latitude:     mapLocation.lat || null,
+    longitude:    mapLocation.lng || null,
+    address:      mapLocation.address || null,
   }
 
   requests.value.push(req)
@@ -525,4 +664,89 @@ textarea {
 .badge-rejected { background: #F7E7E2; color: #B3452F; }
 
 .muted-text { font-size: 12.5px; color: #8A8479; margin-top: 6px; }
+
+/* ===== MAP ===== */
+.map-search-wrap {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.map-search-input {
+  flex: 1;
+  padding: 9px 13px;
+  border-radius: 10px;
+  border: 1.5px solid #E6DFD3;
+  background: #F3EFE8;
+  color: #2E2B27;
+  outline: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  transition: .15s;
+}
+.map-search-input:focus { border-color: #E1712F; background: #fff; }
+.map-search-btn {
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #E6DFD3;
+  background: #F3EFE8;
+  color: #3A3733;
+  font-size: 16px;
+  cursor: pointer;
+  transition: .15s;
+  flex-shrink: 0;
+}
+.map-search-btn:hover:not(:disabled) { background: #E1712F; color: #fff; border-color: #E1712F; }
+.map-search-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.portal-map-box {
+  width: 100%;
+  height: 280px;
+  border-radius: 12px;
+  border: 1.5px solid #E6DFD3;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.map-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.map-gps-btn {
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1.5px solid #E1712F;
+  background: #fff;
+  color: #E1712F;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .15s;
+  flex-shrink: 0;
+}
+.map-gps-btn:hover:not(:disabled) { background: #E1712F; color: #fff; }
+.map-gps-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.map-selected {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3F7D52;
+  line-height: 1.5;
+}
+.map-addr {
+  display: block;
+  font-weight: 400;
+  color: #3A3733;
+  margin-top: 2px;
+}
+.map-not-set {
+  flex: 1;
+  font-size: 11.5px;
+  color: #8A8479;
+  line-height: 1.5;
+}
 </style>
