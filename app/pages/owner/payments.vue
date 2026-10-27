@@ -64,8 +64,9 @@
                 <td>
                   <span class="badge" :class="`badge-${p.status}`">{{ p.status_label }}</span>
                 </td>
-                <td>
-                  <button class="btn btn-ghost btn-sm" @click="openNotes(p.id)">
+                <td class="notes-cell">
+                  <div v-if="p.notes" class="inline-note">{{ p.notes }}</div>
+                  <button v-else class="btn btn-ghost btn-sm" @click="openNotes(p.id)">
                     ملاحظات
                   </button>
                 </td>
@@ -108,14 +109,21 @@
             {{ notesModal.payment.property_unit }} — {{ fmtMoney(notesModal.payment.amount) }} — {{ notesModal.payment.period }}
           </p>
 
-          <div style="max-height:260px;overflow-y:auto;margin:12px 0;">
+          <div style="max-height:300px;overflow-y:auto;margin:12px 0;display:flex;flex-direction:column;gap:10px;">
             <template v-if="notesModal.notes.length">
-              <div v-for="n in notesModal.notes" :key="n.id" class="note-item">
-                {{ n.content }}
-                <div class="meta">{{ n.author_name }} ({{ n.author_role }}) · {{ n.created_at }} {{ n.created_at_time }}</div>
+              <div v-for="n in notesModal.notes" :key="n.id" class="note-bubble">
+                <div class="note-body">{{ n.content }}</div>
+                <div class="note-meta">
+                  <span class="note-author">{{ n.author_name }}</span>
+                  <span class="note-role">{{ n.author_role }}</span>
+                  <span class="note-time">{{ n.created_at }} · {{ n.created_at_time }}</span>
+                </div>
               </div>
             </template>
-            <p v-else class="muted" style="font-size:12.5px;">لا توجد ملاحظات بعد</p>
+            <div v-else class="notes-empty">
+              <span>💬</span>
+              <p>لا توجد ملاحظات بعد</p>
+            </div>
           </div>
 
           <div class="field">
@@ -215,6 +223,9 @@ async function sendNote() {
     const note = await owner.addPaymentNote(notesModal.paymentId!, { content: txt })
     notesModal.notes.push(note)
     notesModal.newNote = ''
+    // حدّث الملاحظة في الجدول مباشرةً
+    const row = payments.value.find(p => p.id === notesModal.paymentId)
+    if (row) row.notes = note.content
     showToast('تم إرسال الملاحظة')
   } catch { showToast('تعذّر إرسال الملاحظة') } finally {
     notesModal.saving = false
@@ -253,6 +264,17 @@ tr:last-child td { border-bottom:none; }
 .empty-state b { display:block; color:#3A3733; font-size:14.5px; margin-bottom:4px; }
 .note-item { background:#F3EFE8; border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13px; }
 .note-item .meta { color:#8A8479; font-size:11px; margin-top:4px; }
+.note-bubble { background:#F3EFE8; border-radius:12px; padding:12px 14px; border-right:3px solid #E1712F; }
+.note-body   { font-size:13.5px; color:#3A3733; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+.note-meta   { display:flex; align-items:center; gap:6px; margin-top:7px; flex-wrap:wrap; }
+.note-author { font-size:12px; font-weight:800; color:#3A3733; }
+.note-role   { font-size:11px; color:#fff; background:#8A8479; border-radius:20px; padding:1px 8px; }
+.note-time   { font-size:11px; color:#8A8479; margin-right:auto; }
+.notes-empty { display:flex; flex-direction:column; align-items:center; gap:6px; padding:24px 0; color:#8A8479; }
+.notes-empty span { font-size:28px; }
+.notes-empty p    { margin:0; font-size:13px; }
+.notes-cell { max-width:200px; }
+.inline-note { background:#F3EFE8; border-radius:8px; padding:6px 10px; font-size:12px; color:#3A3733; line-height:1.5; white-space:pre-wrap; word-break:break-word; margin-bottom:2px; }
 .hint { font-size:12.5px; color:#8A8479; margin-bottom:8px; }
 .field { margin-bottom:14px; }
 .field label { display:block; font-size:13px; color:#8A8479; margin-bottom:6px; font-weight:700; }
