@@ -279,6 +279,46 @@ async function parseFile() {
     const ws   = wb.Sheets[wb.SheetNames[0]]
     const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
 
+    // تحويل أي قيمة تاريخ (Date object أو رقم Excel أو نص) إلى صيغة YYYY-MM-DD
+    function parseDateCell(val: any): string {
+      if (!val && val !== 0) return ''
+      // لو JS Date object (cellDates: true يحوّله)
+      if (val instanceof Date) {
+        const y = val.getFullYear()
+        const m = String(val.getMonth() + 1).padStart(2, '0')
+        const d = String(val.getDate()).padStart(2, '0')
+        return `${y}-${m}-${d}`
+      }
+      // لو رقم serial Excel (مثل 45927)
+      if (typeof val === 'number') {
+        const epoch = new Date(Date.UTC(1899, 11, 30))
+        epoch.setUTCDate(epoch.getUTCDate() + Math.floor(val))
+        const y = epoch.getUTCFullYear()
+        const m = String(epoch.getUTCMonth() + 1).padStart(2, '0')
+        const d = String(epoch.getUTCDate()).padStart(2, '0')
+        return `${y}-${m}-${d}`
+      }
+      // لو نص — حاول تحوّله
+      const s = String(val).trim()
+      if (!s) return ''
+      // لو فيه / مثل 30/10/2026
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const parts = s.split('/')
+        return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`
+      }
+      // لو فعلاً YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+      // حاول Date.parse كـ fallback
+      const parsed = new Date(s)
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear()
+        const m = String(parsed.getMonth() + 1).padStart(2, '0')
+        const d = String(parsed.getDate()).padStart(2, '0')
+        return `${y}-${m}-${d}`
+      }
+      return s
+    }
+
     if (activeTab.value === 'tenants') {
       const seenPhonesInFile = new Set<string>()   // لكشف تكرار الجوال داخل الملف
       previewRows.value = json.map((r: any) => {
@@ -321,7 +361,7 @@ async function parseFile() {
           name,
           phone:          phoneVal,
           property_unit:  unitVal,
-          due_date:       String(r['تاريخ الاستحقاق']|| r['الاستحقاق']|| '').trim(),
+          due_date:       parseDateCell(r['تاريخ الاستحقاق'] || r['الاستحقاق'] || ''),
           collector_name: colName,
           owner_name:     ownName,
           monthly_target: Number(r['الهدف الشهري'] || r['الهدف'] || 0),
@@ -340,7 +380,7 @@ async function parseFile() {
         return {
           name,
           period,
-          due_date: String(r['تاريخ الاستحقاق'] || '').trim(),
+          due_date: parseDateCell(r['تاريخ الاستحقاق'] || ''),
           amount,
           _valid: valid,
           _error: !name ? 'الاسم مطلوب' : !period ? 'الفترة مطلوبة' : !amount ? 'المبلغ مطلوب' : '',
