@@ -67,14 +67,16 @@
                       <td>{{ row.monthly_target||0 }} ر.س</td>
                       <td>
                         <span class="badge"
-                              :class="row._failed    ? 'badge-rejected'
-                                    : row._valid     ? 'badge-approved'
-                                    : row._unitTaken ? 'badge-pending'
-                                    : row._phoneTaken? 'badge-pending'
+                              :class="row._failed     ? 'badge-rejected'
+                                    : row._valid && row._newOwner ? 'badge-new-owner'
+                                    : row._valid      ? 'badge-approved'
+                                    : row._unitTaken  ? 'badge-pending'
+                                    : row._phoneTaken ? 'badge-pending'
                                     : 'badge-rejected'">
                           {{
-                            row._failed     ? translateError(row._error || 'فشل الاستيراد')
-                            : row._valid    ? 'جاهز'
+                            row._failed       ? translateError(row._error || 'فشل الاستيراد')
+                            : row._valid && row._newOwner ? `جاهز (مالك جديد: ${row.owner_name})`
+                            : row._valid      ? 'جاهز'
                             : row._unitTaken  ? 'الوحدة مستأجرة بالفعل'
                             : row._phoneTaken ? 'رقم الجوال مكرر'
                             : translateError(row._error || 'خطأ')
@@ -107,6 +109,10 @@
             </div>
             <div v-if="errorRows.length" style="margin-top:8px;font-size:12px;color:var(--danger);font-weight:700;">
               ⚠ {{ errorRows.length }} صف لن يتم استيرادها بسبب بيانات ناقصة
+            </div>
+            <div v-if="newOwnerNames.length" style="margin-top:8px;font-size:12px;color:#7c5cfc;font-weight:700;background:#f3eeff;border-radius:8px;padding:8px 12px;">
+              ✦ سيتم إضافة {{ newOwnerNames.length }} مالك جديد تلقائياً:
+              <span v-for="(n, i) in newOwnerNames" :key="i" style="display:inline-block;margin:2px 4px;background:#e8dfff;border-radius:4px;padding:1px 8px;">{{ n }}</span>
             </div>
           </div>
         </template>
@@ -146,6 +152,7 @@
           <template v-if="activeTab==='tenants'">
             • عمود «المحصل» يجب أن يطابق الاسم المسجل بالنظام تمامًا.<br>
             • عمود «المالك» اختياري — يربط المستأجر بمالك مسجل.<br>
+            • إذا كان اسم المالك غير موجود في النظام، سيتم إضافته تلقائياً ضمن قائمة الملاك.<br>
             • في حال عدم تطابق اسم المحصل سيظهر الصف كـ «خطأ» في المعاينة.<br>
             • يمكن ترك «الهدف الشهري» و«الملاحظات» فارغين وتعديلهما لاحقًا.<br>
             • تتم إضافة المستأجرين كصفوف جديدة — لا يتم استبدال أي مستأجر موجود.<br>
@@ -235,6 +242,15 @@ onMounted(async () => {
 const validRows = computed(() => previewRows.value.filter(r => r._valid))
 const errorRows = computed(() => previewRows.value.filter(r => !r._valid))
 const fileName  = computed(() => selectedFile.value?.name ?? '')
+
+// الملاك الجدد الذين سيتم إنشاؤهم تلقائياً
+const newOwnerNames = computed(() => {
+  const names = new Set<string>()
+  previewRows.value.forEach(r => {
+    if (r._valid && r._newOwner && r.owner_name) names.add(r.owner_name)
+  })
+  return [...names]
+})
 
 function resetAll() {
   selectedFile.value = null
@@ -334,6 +350,8 @@ async function parseFile() {
         const ownFound = !ownName || ownersList.value.some(
           o => o.name.trim() === ownName
         )
+        // مالك غير موجود في النظام → سيتم إضافته تلقائياً
+        const isNewOwner = !!ownName && !ownFound
 
         // التحقق من إن الوحدة مش مستأجرة بالفعل
         const unitVal   = String(r['العقار والوحدة'] || r['الوحدة'] || '').trim()
@@ -351,7 +369,6 @@ async function parseFile() {
         if (!name)             error = 'الاسم مطلوب'
         else if (!colName)     error = 'المحصل مطلوب'
         else if (!colFound)    error = `لم يتم العثور على اسم المحصل: ${colName}`
-        else if (ownName && !ownFound) error = `لم يتم العثور على اسم المالك: ${ownName}`
         else if (unitTaken)    error = 'الوحدة مستأجرة بالفعل'
         else if (phoneTaken)   error = 'رقم الجوال مكرر'
         else if (phoneDupInFile) error = 'رقم الجوال مكرر في الملف'
@@ -365,10 +382,11 @@ async function parseFile() {
           collector_name: colName,
           owner_name:     ownName,
           monthly_target: Number(r['الهدف الشهري'] || r['الهدف'] || 0),
-          _valid: !!name && !!colName && colFound && (ownName ? ownFound : true) && !unitTaken && !phoneTaken && !phoneDupInFile,
+          _valid: !!name && !!colName && colFound && !unitTaken && !phoneTaken && !phoneDupInFile,
           _error: error,
           _unitTaken: unitTaken,
           _phoneTaken: phoneTaken || phoneDupInFile,
+          _newOwner: isNewOwner,   // مالك جديد سيُضاف تلقائياً
         }
       })
     } else {
@@ -417,6 +435,34 @@ async function doImport() {
   importing.value = true
   importResult.value = null
   try {
+    // ── إضافة الملاك الجدد تلقائياً قبل الاستيراد ──
+    if (newOwnerNames.value.length) {
+      const { manager: mgr } = useApi()
+      const createResults = await Promise.allSettled(
+        newOwnerNames.value.map(ownerName =>
+          mgr.createOwner({
+            name:        ownerName,
+            national_id: 'AUTO-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            password:    Math.random().toString(36).slice(2, 10) + 'A1!',
+          })
+        )
+      )
+      // أضف الملاك الذين أُنشئوا بنجاح لـ ownersList
+      createResults.forEach((res, i) => {
+        if (res.status === 'fulfilled') {
+          const created = res.value as any
+          ownersList.value.push({ id: created.id, name: created.name || newOwnerNames.value[i] })
+        }
+      })
+      const failed = createResults.filter(r => r.status === 'rejected').length
+      if (failed > 0) {
+        showToast(`تعذّر إنشاء ${failed} مالك — تحقق من البيانات`)
+        importing.value = false
+        return
+      }
+      showToast(`تم إضافة ${newOwnerNames.value.length} مالك جديد بنجاح`)
+    }
+
     const fd = new FormData()
     fd.append('file', selectedFile.value)
     const result = await supervisor.importExcel(fd)
@@ -506,3 +552,11 @@ function downloadTemplate() {
     .catch(() => showToast('تعذّر تحميل النموذج'))
 }
 </script>
+
+<style scoped>
+.badge-new-owner {
+  background: #ede8ff;
+  color: #6d3ff0;
+  border: 1px solid #c5b4ff;
+}
+</style>
