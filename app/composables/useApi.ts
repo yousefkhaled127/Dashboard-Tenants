@@ -683,6 +683,39 @@ export function useApi() {
       req<OwnerPaymentNote>(`/owner/payments/${id}/notes`, { method: 'POST', body }),
     properties: (period?: string) =>
       req<OwnerPropertiesData>(`/owner/properties${period ? `?period=${period}` : ''}`),
+
+    // ── أعمال الصيانة ──────────────────────────────────────────
+    maintenanceWorks: (params: { tab?: string; search?: string } = {}) => {
+      const q = new URLSearchParams()
+      if (params.tab)    q.set('tab', params.tab)
+      if (params.search) q.set('search', params.search)
+      return req<{
+        pending_list: any[]; history_list: any[]
+        counters: { pending_count: number; history_count: number; approved_count: number; rejected_count: number; all_count: number }
+      }>(`/owner/maintenance-works?${q}`)
+    },
+    showMaintenanceWork:    (id: number) => req<any>(`/owner/maintenance-works/${id}`),
+    approveMaintenanceWork: (id: number, body: { notes?: string }) =>
+      req<any>(`/owner/maintenance-works/${id}/approve`, { method: 'POST', body }),
+    rejectMaintenanceWork:  (id: number, body: { rejection_reason: string; notes?: string }) =>
+      req<any>(`/owner/maintenance-works/${id}/reject`, { method: 'POST', body }),
+    rateMaintenanceWork:    (id: number, body: { rating: number; rating_comment?: string }) =>
+      req<any>(`/owner/maintenance-works/${id}/rate`, { method: 'POST', body }),
+
+    // ── طلبات الصيانة المحوّلة للمالك ──────────────────────────
+    maintenanceRequests: (params: { tab?: string; search?: string } = {}) => {
+      const q = new URLSearchParams()
+      if (params.tab)    q.set('tab', params.tab)
+      if (params.search) q.set('search', params.search)
+      return req<{
+        pending_requests: any[]; history_requests: any[]
+        counters: { pending_count: number; history_count: number; approved_count: number; rejected_count: number; all_count: number }
+      }>(`/owner/maintenance-requests?${q}`)
+    },
+    approveMaintenanceRequest: (id: number, body: { notes?: string }) =>
+      req<any>(`/owner/maintenance-requests/${id}/approve`, { method: 'POST', body }),
+    rejectMaintenanceRequest:  (id: number, body: { rejection_reason: string }) =>
+      req<any>(`/owner/maintenance-requests/${id}/reject`, { method: 'POST', body }),
   }
 
   return { auth, manager, collector, owner, base, token }

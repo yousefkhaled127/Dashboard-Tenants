@@ -36,33 +36,28 @@
 
         <div class="row2">
           <div class="field">
-            <label>اسم المالك</label>
-            <select v-model="form.owner">
-              <option value="">اختر المالك</option>
-              <option v-for="o in owners" :key="o.id" :value="o.name">{{ o.name }}</option>
-            </select>
+            <label>رقم جوال المستأجر</label>
+          <input v-model="form.phone" placeholder="05xxxxxxxx" type="tel" />
           </div>
-          <div class="field">
-            <label>رقم الوحدة</label>
-            <input v-model="form.unit" placeholder="مثال: برج الأمل - وحدة 12" />
+                <div class="field">
+            <label>رقم هوية المستأجر</label>
+            <input v-model="form.idNumber" placeholder="رقم الهوية / الإقامة" />
           </div>
+    
         </div>
 
         <div class="row2">
           <div class="field">
-            <label>رقم هوية المستأجر</label>
-            <input v-model="form.idNumber" placeholder="رقم الهوية / الإقامة" />
+            <label>اسم العقار - رقم الوحده</label>
+            <input v-model="form.unit" placeholder="مثال: برج الأمل - وحدة 12" />
           </div>
           <div class="field">
-            <label>تاريخ ميلاد المستأجر</label>
+            <label>تاريخ تاجير الوحده</label>
             <input v-model="form.birthDate" type="date" />
           </div>
         </div>
 
-        <div class="field">
-          <label>رقم جوال المستأجر</label>
-          <input v-model="form.phone" placeholder="05xxxxxxxx" type="tel" />
-        </div>
+  
 
         <div class="field">
           <label>عنوان الطلب</label>
@@ -189,11 +184,6 @@
 </template>
 
 <script setup lang="ts">
-// ===== OWNERS LIST (static for now) =====
-const owners = [
-  { id: 'own1', name: 'المالك الأول' },
-  { id: 'own2', name: 'المالك الثاني' },
-]
 
 // ===== STORAGE KEY =====
 const STORAGE_KEY = 'portal-maintenance-requests'

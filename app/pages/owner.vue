@@ -44,12 +44,13 @@ provide('ownerSession', computed(() => ({
 })))
 
 const navItems = [
-  { to: '/owner',            label: 'نظرة عامة' },
-  { to: '/owner/payments',   label: 'سدادات وحداتي' },
-  { to: '/owner/properties', label: 'إدارة أملاكي' },
-  { to: '/owner/vacancies',  label: 'الشقق الشاغرة' },
-  { to: '/owner/listings',   label: 'مهام العقارات الشاغرة' },
-  { to: '/owner/settings',   label: 'كلمة المرور' },
+  { to: '/owner',             label: 'نظرة عامة' },
+  { to: '/owner/payments',    label: 'سدادات وحداتي' },
+  { to: '/owner/properties',  label: 'إدارة أملاكي' },
+  { to: '/owner/maintenance', label: 'أعمال الصيانة' },
+  { to: '/owner/sms',         label: 'الرسائل (SMS)' },
+  { to: '/owner/reports',     label: 'التقارير الشهرية' },
+  { to: '/owner/settings',    label: 'كلمة المرور' },
 ]
 
 async function logout() {
