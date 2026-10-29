@@ -291,47 +291,51 @@ async function parseFile() {
       return
     }
 
-    const wb   = XLSX.read(buffer, { type: 'array', cellDates: true })
+    const wb   = XLSX.read(buffer, { type: 'array', cellDates: false })
     const ws   = wb.Sheets[wb.SheetNames[0]]
     const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
 
-    // تحويل أي قيمة تاريخ (Date object أو رقم Excel أو نص) إلى صيغة YYYY-MM-DD
+    // تحويل أي قيمة تاريخ إلى صيغة YYYY-MM-DD — بدون استخدام new Date() لتجنب مشاكل الـ timezone
     function parseDateCell(val: any): string {
       if (!val && val !== 0) return ''
-      // لو JS Date object (cellDates: true يحوّله)
-      if (val instanceof Date) {
-        const y = val.getFullYear()
-        const m = String(val.getMonth() + 1).padStart(2, '0')
-        const d = String(val.getDate()).padStart(2, '0')
-        return `${y}-${m}-${d}`
-      }
-      // لو رقم serial Excel (مثل 45927)
+
+      // رقم serial Excel (مثل 45927) — نحسب بـ UTC خالص بدون new Date
       if (typeof val === 'number') {
-        const epoch = new Date(Date.UTC(1899, 11, 30))
-        epoch.setUTCDate(epoch.getUTCDate() + Math.floor(val))
+        // Excel epoch: 1 = 1900-01-01، مع تصحيح خطأ الـ leap year الوهمي (1900-02-29)
+        const days  = Math.floor(val) - (val >= 60 ? 1 : 0)  // تصحيح bug الـ 1900
+        const ms    = (days - 1) * 86400000  // ms من 1900-01-01
+        const base  = Date.UTC(1900, 0, 1)   // 1900-01-01 UTC
+        const epoch = new Date(base + ms)
         const y = epoch.getUTCFullYear()
         const m = String(epoch.getUTCMonth() + 1).padStart(2, '0')
         const d = String(epoch.getUTCDate()).padStart(2, '0')
         return `${y}-${m}-${d}`
       }
-      // لو نص — حاول تحوّله
+
       const s = String(val).trim()
       if (!s) return ''
-      // لو فيه / مثل 30/10/2026
-      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-        const parts = s.split('/')
-        return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`
-      }
-      // لو فعلاً YYYY-MM-DD
+
+      // صيغة YYYY-MM-DD مباشرة
       if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
-      // حاول Date.parse كـ fallback
-      const parsed = new Date(s)
-      if (!isNaN(parsed.getTime())) {
-        const y = parsed.getFullYear()
-        const m = String(parsed.getMonth() + 1).padStart(2, '0')
-        const d = String(parsed.getDate()).padStart(2, '0')
-        return `${y}-${m}-${d}`
+
+      // صيغة DD/MM/YYYY
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const [dd, mm, yyyy] = s.split('/')
+        return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
       }
+
+      // صيغة MM/DD/YYYY
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+        const [mm, dd, yyyy] = s.split('/')
+        return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
+      }
+
+      // صيغة DD-MM-YYYY
+      if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
+        const [dd, mm, yyyy] = s.split('-')
+        return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
+      }
+
       return s
     }
 
