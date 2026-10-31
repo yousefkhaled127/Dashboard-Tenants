@@ -48,8 +48,7 @@
                   <tr v-if="activeTab==='tenants'">
                     <th>رقم المستأجر</th><th>اسم المستأجر</th><th>الجوال</th>
                     <th>العقار/الوحدة</th><th>الاستحقاق</th><th>المحصل</th>
-                    <th>المالك</th><th>الهدف الشهري</th><th>الحالة</th>
-                  </tr>
+                    <th>المالك</th><th>الهدف الشهري</th><th>الحالة</th>                  </tr>
                   <tr v-else>
                     <th>المستأجر</th><th>الفترة</th><th>الاستحقاق</th><th>المبلغ</th><th>الحالة</th>
                   </tr>
@@ -291,52 +290,88 @@ async function parseFile() {
       return
     }
 
-    const wb   = XLSX.read(buffer, { type: 'array', cellDates: false })
+    // cellDates: true → XLSX يحول serial numbers لـ JS Date objects تلقائياً
+    const wb   = XLSX.read(buffer, { type: 'array', cellDates: true })
     const ws   = wb.Sheets[wb.SheetNames[0]]
-    const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
+    // raw: true مع cellDates: true → التواريخ ترجع كـ JS Date objects، باقي القيم raw
+    const json = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true })
+    // DEBUG: اطبع أول صف عشان نشوف صيغة التاريخ
+    if (json.length) {
+      const first = json[0] as any
+      const dateVal = first['تاريخ الاستحقاق'] || first['الاستحقاق']
+      console.log('[Import Debug] raw date value:', dateVal, '| type:', typeof dateVal, '| isDate:', dateVal instanceof Date)
+    }
 
-    // تحويل أي قيمة تاريخ إلى صيغة YYYY-MM-DD — بدون استخدام new Date() لتجنب مشاكل الـ timezone
+    /**
+     * تحويل أي قيمة تاريخ إلى صيغة YYYY-MM-DD
+     * مع cellDates:true، التواريخ تيجي إما كـ JS Date أو كـ string "MM/DD/YY" أو "YYYY-MM-DD"
+     */
     function parseDateCell(val: any): string {
       if (!val && val !== 0) return ''
 
-      // رقم serial Excel (مثل 45927) — نحسب بـ UTC خالص بدون new Date
-      if (typeof val === 'number') {
-        // Excel epoch: 1 = 1900-01-01، مع تصحيح خطأ الـ leap year الوهمي (1900-02-29)
-        const days  = Math.floor(val) - (val >= 60 ? 1 : 0)  // تصحيح bug الـ 1900
-        const ms    = (days - 1) * 86400000  // ms من 1900-01-01
-        const base  = Date.UTC(1900, 0, 1)   // 1900-01-01 UTC
-        const epoch = new Date(base + ms)
-        const y = epoch.getUTCFullYear()
-        const m = String(epoch.getUTCMonth() + 1).padStart(2, '0')
-        const d = String(epoch.getUTCDate()).padStart(2, '0')
+      // JS Date object (من cellDates:true)
+      if (val instanceof Date) {
+        if (isNaN(val.getTime())) return ''
+        const y = val.getFullYear()
+        const m = String(val.getMonth() + 1).padStart(2, '0')
+        const d = String(val.getDate()).padStart(2, '0')
         return `${y}-${m}-${d}`
       }
 
       const s = String(val).trim()
       if (!s) return ''
 
-      // صيغة YYYY-MM-DD مباشرة
+      // صيغة YYYY-MM-DD مباشرة — مقبولة
       if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
 
-      // صيغة DD/MM/YYYY
-      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-        const [dd, mm, yyyy] = s.split('/')
-        return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
+      // رقم serial خام (لو raw:true وصله كـ number)
+      if (typeof val === 'number' && val > 1000) {
+        // Excel serial: يناير 1 1900 = 1
+        // الخطأ الشهير في Excel بخصوص 1900 كسنة كبيسة مصحّح هنا
+        const serial = Math.floor(val)
+        const utcDays = serial - 1 - (serial >= 60 ? 1 : 0) // تصحيح خطأ Excel لـ 1900
+        const epoch   = new Date(Date.UTC(1899, 11, 31) + utcDays * 86400000)
+        if (isNaN(epoch.getTime())) return ''
+        const y = epoch.getUTCFullYear()
+        const m = String(epoch.getUTCMonth() + 1).padStart(2, '0')
+        const d = String(epoch.getUTCDate()).padStart(2, '0')
+        return `${y}-${m}-${d}`
       }
 
-      // صيغة MM/DD/YYYY
-      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-        const [mm, dd, yyyy] = s.split('/')
-        return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
+      // أي فاصل: / أو - أو .
+      const sep = s.includes('/') ? '/' : s.includes('-') ? '-' : s.includes('.') ? '.' : null
+      if (!sep) return s
+
+      const parts = s.split(sep).map(p => p.trim())
+      if (parts.length !== 3) return s
+
+      let [a, b, c] = parts
+
+      // إكمال السنة المختصرة: 26 → 2026
+      const fixYear = (y: string) => y.length <= 2 ? '20' + y.padStart(2, '0') : y
+
+      let dd: string, mm: string, yyyy: string
+
+      if (a.length === 4) {
+        // YYYY-MM-DD أو YYYY/MM/DD
+        yyyy = a; mm = b; dd = c
+      } else {
+        yyyy = fixYear(c)
+        const na = parseInt(a), nb = parseInt(b)
+        // لو الأول > 12 → يوم (DD/MM)
+        // لو الثاني > 12 → يوم (MM/DD)
+        // غير كده → نفترض MM/DD (Excel الأمريكي الافتراضي)
+        if (na > 12)      { dd = a; mm = b }
+        else if (nb > 12) { mm = a; dd = b }
+        else              { mm = a; dd = b }
       }
 
-      // صيغة DD-MM-YYYY
-      if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
-        const [dd, mm, yyyy] = s.split('-')
-        return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
-      }
+      // تحقق من صحة القيم
+      const yNum = parseInt(yyyy), mNum = parseInt(mm), dNum = parseInt(dd)
+      if (isNaN(yNum) || isNaN(mNum) || isNaN(dNum)) return s
+      if (mNum < 1 || mNum > 12 || dNum < 1 || dNum > 31) return s
 
-      return s
+      return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`
     }
 
     if (activeTab.value === 'tenants') {
@@ -390,7 +425,8 @@ async function parseFile() {
           _error: error,
           _unitTaken: unitTaken,
           _phoneTaken: phoneTaken || phoneDupInFile,
-          _newOwner: isNewOwner,   // مالك جديد سيُضاف تلقائياً
+          _newOwner: isNewOwner,
+          _notes: String(r['ملاحظات'] || r['notes'] || '').trim(),
         }
       })
     } else {
@@ -505,8 +541,27 @@ async function doImport() {
 
     // الصفوف اللي نجحت — نمسح فقط اللي لم تفشل
     if (result.failed === 0) {
-      // كل شيء نجح
       showToast(`تم الاستيراد بنجاح — أُضيف ${result.imported} مستأجر`)
+
+      // ── إضافة ملاحظات الملف للمستأجرين المُضافين ──
+      const rowsWithNotes = validRows.value.filter(r => r._notes?.trim())
+      if (rowsWithNotes.length) {
+        try {
+          // جيب المستأجرين الجدد من الـ API عشان نعرف الـ IDs
+          const allTenants = await supervisor.tenants({ page: 1 })
+          const found = allTenants.tenants
+          for (const row of rowsWithNotes) {
+            const match = found.find((t: any) =>
+              t.name?.trim() === row.name?.trim() ||
+              t.tenant_number === row.tenant_number
+            )
+            if (match?.id) {
+              await supervisor.addNote(match.id, { content: row._notes })
+            }
+          }
+        } catch { /* تجاهل لو فشل إضافة الملاحظات */ }
+      }
+
       setTimeout(() => {
         previewRows.value = []
         selectedFile.value = null

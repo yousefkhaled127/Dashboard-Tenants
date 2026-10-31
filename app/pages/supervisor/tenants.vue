@@ -263,7 +263,6 @@ const currentPage = ref(1)
 // بيانات القائمة
 const listData = ref<{ tenants: TenantListItem[]; pagination: any; period: string } | null>(null)
 const tenants = computed(() => listData.value?.tenants || [])
-
 // المحصلون والملاك للقوائم المنسدلة
 const collectors = ref<UserByType[]>([])
 const owners = ref<UserByType[]>([])
@@ -294,7 +293,8 @@ async function doDeleteTenant() {
     currentPage.value = 1
     await fetchList()
   } catch (e: any) {
-    showToast(e?.data?.message || 'تعذّر حذف المستأجر')
+    const msg = e?.data?.message || e?.message || 'تعذّر حذف المستأجر'
+    showToast(msg)
   } finally {
     deleting.value = false
   }
@@ -320,6 +320,9 @@ async function fetchList() {
       period: mk,
       page: currentPage.value,
     })
+        console.log('كل بيانات القائمة:', listData.value);
+    console.log('قائمة المستأجرين فقط:', tenants.value);
+
   } catch (e: any) {
     const msg = e?.data?.message || e?.message || 'تعذّر جلب قائمة المستأجرين'
     showToast(msg)

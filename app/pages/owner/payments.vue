@@ -42,7 +42,7 @@
               <th>الفترة</th>
               <th>التاريخ</th>
               <th>الحالة</th>
-              <th>ملاحظاتي</th>
+              <th>تعليقاتي</th>
             </tr>
           </thead>
           <tbody>
@@ -64,10 +64,9 @@
                 <td>
                   <span class="badge" :class="`badge-${p.status}`">{{ p.status_label }}</span>
                 </td>
-                <td class="notes-cell">
-                  <div v-if="p.notes" class="inline-note">{{ p.notes }}</div>
-                  <button v-else class="btn btn-ghost btn-sm" @click="openNotes(p.id)">
-                    ملاحظات
+                <td>
+                  <button class="btn btn-ghost btn-sm" @click="openNotes(p.id)">
+                    تعليقات{{ countNotes(p.id) ? ` (${countNotes(p.id)})` : '' }}
                   </button>
                 </td>
               </tr>
@@ -96,7 +95,7 @@
     <div v-if="notesModal.open" class="modal-overlay" @mousedown.self="closeNotes">
       <div class="modal">
         <div class="modal-head">
-          <h3>ملاحظات السداد</h3>
+          <h3>تعليقاتي</h3>
           <button class="modal-close" @click="closeNotes">×</button>
         </div>
 
@@ -122,18 +121,18 @@
             </template>
             <div v-else class="notes-empty">
               <span>💬</span>
-              <p>لا توجد ملاحظات بعد</p>
+              <p>لا توجد تعليقات بعد</p>
             </div>
           </div>
 
           <div class="field">
-            <label>إضافة ملاحظة جديدة</label>
-            <textarea v-model="notesModal.newNote" placeholder="اكتب ملاحظتك على هذا السداد..." />
+            <label>إضافة تعليق جديد</label>
+            <textarea v-model="notesModal.newNote" placeholder="اكتب تعليقك على هذا السداد..." />
           </div>
 
           <div class="modal-actions">
             <button class="btn btn-ghost" @click="closeNotes">إغلاق</button>
-            <button class="btn btn-primary" :disabled="notesModal.saving" @click="sendNote">
+            <button class="btn btn-primary" :disabled="notesModal.saving || !notesModal.newNote.trim()" @click="sendNote">
               {{ notesModal.saving ? 'جارٍ الإرسال...' : 'إرسال' }}
             </button>
           </div>
@@ -173,6 +172,7 @@ async function fetchList() {
     })
     payments.value  = data.payments
     stats.value     = data.statistics
+    console.log(payments.value)
     pagination.value = data.pagination
   } catch { showToast('تعذّر جلب السدادات') }
 }
@@ -195,6 +195,23 @@ const notesModal = reactive({
   newNote: '',
 })
 
+// cache محلي للتعليقات المضافة خلال الجلسة
+const localNotesCache = new Map<number, OwnerPaymentNote[]>()
+// عداد التعليقات لكل payment
+const notesCounts = ref<Record<number, number>>({})
+
+function countNotes(id: number) {
+  const p = payments.value.find(p => p.id === id)
+
+  const supervisorCount = p?.notes
+    ? p.notes.split('\n---\n').filter(c => c.trim()).length
+    : 0
+
+  const ownerCount = p?.notes_list?.length || 0
+
+  return supervisorCount + ownerCount
+}
+
 async function openNotes(id: number) {
   notesModal.open      = true
   notesModal.loading   = true
@@ -205,8 +222,31 @@ async function openNotes(id: number) {
   try {
     const data = await owner.getPaymentNotes(id)
     notesModal.payment = data.payment
-    notesModal.notes   = data.notes
-  } catch { showToast('تعذّر جلب الملاحظات') } finally {
+
+    // 1) تعليقات المشرف من حقل notes (string بـ separator)
+    const SEPARATOR = '\n---\n'
+    const p = payments.value.find(x => x.id === id)
+    const supervisorNotes: OwnerPaymentNote[] = (p?.notes || '')
+      .split(SEPARATOR)
+      .filter(c => c.trim())
+      .map((content, i) => ({
+        id: -(i + 1),
+        content,
+        author_name: 'المشرف العام',
+        author_role: 'مشرف',
+        created_at: '',
+        created_at_time: '',
+      }))
+      
+    // 2) تعليقات المالك من الـ API
+    const apiNotes = data.notes || []
+    const cached   = localNotesCache.get(id) || []
+    const extra    = cached.filter(c => !apiNotes.some((a: any) => a.id === c.id))
+
+    // دمج الكل
+    notesModal.notes = [...supervisorNotes, ...apiNotes, ...extra]
+    notesCounts.value[id] = notesModal.notes.length
+  } catch { showToast('تعذّر جلب التعليقات') } finally {
     notesModal.loading = false
   }
 }
@@ -220,14 +260,18 @@ async function sendNote() {
   if (!txt) return
   notesModal.saving = true
   try {
-    const note = await owner.addPaymentNote(notesModal.paymentId!, { content: txt })
+    const id = notesModal.paymentId!
+    // استخدم POST الأصلي
+    const note = await owner.addPaymentNote(id, { content: txt })
+    console.log(note)
     notesModal.notes.push(note)
     notesModal.newNote = ''
-    // حدّث الملاحظة في الجدول مباشرةً
-    const row = payments.value.find(p => p.id === notesModal.paymentId)
-    if (row) row.notes = note.content
-    showToast('تم إرسال الملاحظة')
-  } catch { showToast('تعذّر إرسال الملاحظة') } finally {
+    // احفظ في الـ cache المحلي
+    if (!localNotesCache.has(id)) localNotesCache.set(id, [])
+    localNotesCache.get(id)!.push(note)
+    notesCounts.value[id] = notesModal.notes.length
+    showToast('تم إرسال التعليق')
+  } catch { showToast('تعذّر إرسال التعليق') } finally {
     notesModal.saving = false
   }
 }
@@ -262,8 +306,6 @@ tr:last-child td { border-bottom:none; }
 .dl-link:hover { text-decoration:underline; }
 .empty-state { text-align:center; padding:40px 20px; color:#8A8479; }
 .empty-state b { display:block; color:#3A3733; font-size:14.5px; margin-bottom:4px; }
-.note-item { background:#F3EFE8; border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13px; }
-.note-item .meta { color:#8A8479; font-size:11px; margin-top:4px; }
 .note-bubble { background:#F3EFE8; border-radius:12px; padding:12px 14px; border-right:3px solid #E1712F; }
 .note-body   { font-size:13.5px; color:#3A3733; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
 .note-meta   { display:flex; align-items:center; gap:6px; margin-top:7px; flex-wrap:wrap; }
@@ -273,8 +315,6 @@ tr:last-child td { border-bottom:none; }
 .notes-empty { display:flex; flex-direction:column; align-items:center; gap:6px; padding:24px 0; color:#8A8479; }
 .notes-empty span { font-size:28px; }
 .notes-empty p    { margin:0; font-size:13px; }
-.notes-cell { max-width:200px; }
-.inline-note { background:#F3EFE8; border-radius:8px; padding:6px 10px; font-size:12px; color:#3A3733; line-height:1.5; white-space:pre-wrap; word-break:break-word; margin-bottom:2px; }
 .hint { font-size:12.5px; color:#8A8479; margin-bottom:8px; }
 .field { margin-bottom:14px; }
 .field label { display:block; font-size:13px; color:#8A8479; margin-bottom:6px; font-weight:700; }
