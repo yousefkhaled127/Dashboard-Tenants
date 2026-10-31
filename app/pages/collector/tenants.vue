@@ -115,7 +115,7 @@
                   <td>{{ t.due_date_formatted || '—' }}</td>
                   <td>{{ fmtMoney(t.monthly_target) }}</td>
                   <td>{{ fmtMoney(t.paid_amount) }}</td>
-                  <td><span class="badge" :class="`badge-${t.status === 'regular' ? 'approved' : t.status}`">{{ t.status_label }}</span></td>
+                  <td><span class="badge" :class="tenantBadge(t.status, t.status_label)">{{ t.status_label }}</span></td>
                   <td><button class="btn btn-ghost btn-sm" @click.stop="openDetail(t.id)">فتح ›</button></td>
                 </tr>
               </template>
@@ -191,6 +191,17 @@ async function openDetail(id: number) {
 function closeDetail() {
   detailId.value = null
   detail.value = null
+}
+
+function tenantBadge(status: string, statusLabel?: string) {
+  const lbl = (statusLabel || '').trim()
+  if (lbl === 'مسدد') return 'badge-approved'
+  if (lbl === 'لم يسدد' || lbl === 'منتظم' || lbl === 'سداد منتظم') return 'badge-rejected'
+  // fallback بالـ status الإنجليزي
+  if (status === 'paid' || status === 'settled') return 'badge-approved'
+  if (status === 'regular' || status === 'unpaid' || status === 'overdue' || status === 'late') return 'badge-rejected'
+  if (status === 'partial') return 'badge-pending'
+  return `badge-${status}`
 }
 
 const promiseColor = (date: string) => {

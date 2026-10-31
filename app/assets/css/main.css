@@ -139,6 +139,10 @@ tr.clickable:hover { background: var(--bg); cursor: pointer; }
 .badge-approved { background: var(--success-tint); color: var(--success); }
 .badge-rejected { background: var(--danger-tint); color: var(--danger); }
 .badge-neutral  { background: var(--orange-tint); color: var(--orange-dark); }
+/* حالات المستأجرين */
+.badge-paid     { background: var(--success-tint); color: var(--success); }
+.badge-overdue  { background: var(--danger-tint);  color: var(--danger); }
+.badge-partial  { background: var(--warning-tint); color: var(--warning); }
 
 .muted { color: var(--muted); }
 .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
