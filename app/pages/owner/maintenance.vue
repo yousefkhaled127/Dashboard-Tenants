@@ -144,7 +144,8 @@
 import { useApi } from '~/composables/useApi'
 
 const { owner } = useApi()
-const showToast = inject<(m: string) => void>('showToast', () => {})
+const showToast      = inject<(m: string) => void>('showToast', () => {})
+const refreshBadges  = inject<() => void>('refreshBadges', () => {})
 
 const loading   = ref(true)
 const allWorks  = ref<any[]>([])
@@ -202,6 +203,7 @@ async function confirmApprove() {
     showToast('تم قبول عمل الصيانة')
     approveModal.open = false
     await load()
+    refreshBadges()
   } catch (e: any) { showToast(e?.data?.message || 'تعذّر القبول')
   } finally { approveModal.saving = false }
 }
@@ -221,6 +223,7 @@ async function confirmReject() {
     showToast('تم رفض عمل الصيانة')
     rejectModal.open = false
     await load()
+    refreshBadges()
   } catch (e: any) { showToast(e?.data?.message || 'تعذّر الرفض')
   } finally { rejectModal.saving = false }
 }

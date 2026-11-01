@@ -17,13 +17,46 @@
 
 <script setup lang="ts">
 import { useAuth } from '~/composables/useAuth'
+import { useApi  } from '~/composables/useApi'
 
 definePageMeta({ middleware: 'auth' })
 
 const { user, fetchMe, logout: authLogout } = useAuth()
+const { owner } = useApi()
 
 const syncTime = ref('—')
 const toast    = ref('')
+
+// ── badge counts ──
+const pendingMaintCount = ref(0)   // أعمال الصيانة بانتظار قرار المالك
+const pendingSmsCount   = ref(0)   // طلبات صيانة محوّلة للمالك (الرسائل)
+const pendingPayCount   = ref(0)   // سدادات قيد المراجعة
+
+let _pollTimer: ReturnType<typeof setInterval> | null = null
+
+async function fetchDashboardData() {
+  try {
+    const [maintRes, reqRes, payRes] = await Promise.allSettled([
+      owner.maintenanceWorks({}),
+      owner.maintenanceRequests({}),
+      owner.payments({ status: 'pending', page: 1 }),
+    ])
+
+    if (maintRes.status === 'fulfilled') {
+      pendingMaintCount.value = maintRes.value?.counters?.pending_count
+        ?? (maintRes.value?.pending_list?.length || 0)
+    }
+
+    if (reqRes.status === 'fulfilled') {
+      pendingSmsCount.value = reqRes.value?.counters?.pending_count
+        ?? (reqRes.value?.pending_requests?.length || 0)
+    }
+
+    if (payRes.status === 'fulfilled') {
+      pendingPayCount.value = payRes.value?.pagination?.total ?? 0
+    }
+  } catch { /* silent */ }
+}
 
 // ── dark mode ──
 const isDark = ref(false)
@@ -47,6 +80,7 @@ function getNow() {
 }
 
 async function refresh() {
+  await fetchDashboardData()
   syncTime.value = getNow()
   showToastMsg('تم التحديث')
 }
@@ -56,27 +90,31 @@ function showToastMsg(msg: string) {
   setTimeout(() => { toast.value = '' }, 2400)
 }
 
-provide('showToast',    showToastMsg)
+provide('showToast',      showToastMsg)
+provide('refreshBadges',  fetchDashboardData)
 provide('ownerSession', computed(() => ({
   id:   user.value?.id,
   name: user.value?.name,
   role: user.value?.type,
 })))
 
-const navItems = [
+const navItems = computed(() => [
   { to: '/owner',             label: 'نظرة عامة' },
-  { to: '/owner/payments',    label: 'سدادات وحداتي' },
+  { to: '/owner/payments',    label: 'سدادات وحداتي',   badge: pendingPayCount.value   || null },
   { to: '/owner/properties',  label: 'إدارة أملاكي' },
-  { to: '/owner/maintenance', label: 'أعمال الصيانة' },
-  { to: '/owner/sms',         label: 'الرسائل (SMS)' },
+  { to: '/owner/maintenance', label: 'أعمال الصيانة',   badge: pendingMaintCount.value || null },
+  { to: '/owner/sms',         label: 'الرسائل (SMS)',    badge: pendingSmsCount.value   || null },
   { to: '/owner/reports',     label: 'التقارير الشهرية' },
   { to: '/owner/settings',    label: 'كلمة المرور' },
-]
+])
 
 async function logout() {
   await authLogout()
   navigateTo('/')
 }
+
+// تحديث badges عند التنقل بين الصفحات
+watch(() => useRoute().path, fetchDashboardData)
 
 onMounted(async () => {
   // ثيم
@@ -92,5 +130,11 @@ onMounted(async () => {
 
   await fetchMe()
   syncTime.value = getNow()
+  await fetchDashboardData()
+
+  // polling كل 10 ثواني
+  _pollTimer = setInterval(fetchDashboardData, 10_000)
 })
+
+onUnmounted(() => { if (_pollTimer) clearInterval(_pollTimer) })
 </script>
