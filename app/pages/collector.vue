@@ -5,8 +5,11 @@
     :navItems="navItems"
     :syncTime="syncTime"
     :toast="toast"
+    :isDark="isDark"
+    :showTheme="true"
     @refresh="refresh"
     @logout="logout"
+    @toggleTheme="toggleTheme"
   >
     <NuxtPage />
   </AppSidebar>
@@ -33,6 +36,23 @@ const syncTime = ref('—')
 const toast    = ref('')
 const alertsCount      = ref(0)
 const noticesToDeliver = ref(0)
+
+// ── dark mode ──
+const isDark = ref(false)
+function applyTheme(t: string) {
+  document.documentElement.setAttribute('data-theme', t)
+  const m = document.querySelector('meta[name="theme-color"]')
+  if (m) m.setAttribute('content', t === 'dark' ? '#0E0D0B' : '#3A3733')
+}
+function toggleTheme() {
+  isDark.value = !isDark.value
+  const next = isDark.value ? 'dark' : 'light'
+  document.documentElement.classList.add('theme-anim')
+  applyTheme(next)
+  try { localStorage.setItem('tahsilat-theme', next) } catch {}
+  setTimeout(() => document.documentElement.classList.remove('theme-anim'), 380)
+  showToastMsg(next === 'dark' ? 'تم التبديل إلى الوضع الداكن' : 'تم التبديل إلى الوضع الفاتح')
+}
 
 function getNow() {
   return new Date().toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit' })
@@ -85,6 +105,17 @@ async function logout() {
 }
 
 onMounted(async () => {
+  // ثيم
+  try {
+    const saved = localStorage.getItem('tahsilat-theme')
+    if (saved === 'dark' || saved === 'light') {
+      isDark.value = saved === 'dark'; applyTheme(saved)
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      isDark.value = prefersDark; applyTheme(prefersDark ? 'dark' : 'light')
+    }
+  } catch {}
+
   await fetchMe()
   syncTime.value = getNow()
   await fetchDashboardData()

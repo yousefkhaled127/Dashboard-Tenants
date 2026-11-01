@@ -113,9 +113,6 @@ async function fetchList() {
     const data = await supervisor.ownerPayments({ search: searchQ.value || undefined, period: mk })
     payments.value = data.payments
     stats.value    = data.statistics
-    console.log(payments.value)
-    console.log(stats.value)
-
   } catch { showToast('تعذّر جلب سدادات الملاك') }
 }
 
@@ -136,34 +133,40 @@ const notesCountCache = ref<Record<number, number>>({})
 function totalCount(id: number) {
   if (notesCountCache.value[id] != null) return notesCountCache.value[id]
   const p = payments.value.find(x => x.id === id)
-  const supervisorCount = p?.notes ? p.notes.split(SEPARATOR).filter(c => c.trim()).length : 0
-  const ownerCount = p?.notes_list?.length ?? 0
-  return supervisorCount + ownerCount
+  // إذا في notes_list استخدمها، غير كده احسب من notes string
+  if (p?.notes_list?.length) return p.notes_list.length
+  return p?.notes ? p.notes.split(SEPARATOR).filter(c => c.trim()).length : 0
 }
 
 async function openNotes(p: OwnerPaymentItem) {
-  notesId.value       = p.id
+  notesId.value = p.id
   activePayment.value = p
-  newComment.value    = ''
-  allNotes.value      = []
-  notesLoading.value  = true
-  try {
-    // 1) تعليقات المشرف من حقل notes (string بـ separator)
-    const supervisorNotes = (p.notes || '')
-      .split(SEPARATOR)
-      .filter(c => c.trim())
-      .map(content => ({ content, author: 'المشرف العام', role: 'مشرف', time: '' }))
+  newComment.value = ''
+  notesLoading.value = true
 
-    // 2) تعليقات المالك من notes_list الموجودة في الـ payment مباشرة
-    const ownerNotes = (p.notes_list || []).map((n: OwnerPaymentNote) => ({
+  try {
+    // 1) تعليقات من notes_list (الأدق — كل تعليق record منفصل)
+    const fromList = (p.notes_list || []).map((n: any) => ({
       content: n.content,
-      author:  n.author_name || 'المالك',
-      role:    n.author_role || 'مالك',
+      author:  n.author_name || '—',
+      role:    n.author_role || '',
       time:    [n.created_at, n.created_at_time].filter(Boolean).join(' · '),
     }))
 
-    allNotes.value = [...supervisorNotes, ...ownerNotes]
+    if (fromList.length) {
+      allNotes.value = fromList
+    } else {
+      // fallback: من حقل notes القديم (string بـ separator)
+      allNotes.value = (p.notes || '')
+        .split(SEPARATOR)
+        .map(c => c.trim())
+        .filter(Boolean)
+        .map(content => ({ content, author: 'المشرف العام', role: 'مشرف', time: '' }))
+    }
+
     notesCountCache.value[p.id] = allNotes.value.length
+  } catch {
+    showToast('تعذّر عرض التعليقات')
   } finally {
     notesLoading.value = false
   }

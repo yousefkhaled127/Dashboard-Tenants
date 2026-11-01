@@ -169,6 +169,7 @@ export interface OwnerPaymentItem {
   status: string
   status_label: string
   notes?: string
+  notes_list?: OwnerPaymentNote[]
   attachment_url?: string | null
 }
 

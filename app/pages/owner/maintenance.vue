@@ -153,9 +153,17 @@ async function load() {
   loading.value = true
   try {
     const d = await owner.maintenanceWorks()
-    console.log(d)
     // دمج pending + history في قائمة واحدة (pending أولاً)
-    allWorks.value = [...(d.pending_list ?? []), ...(d.history_list ?? [])]
+    // support كلا الـ structures: {pending_list, history_list} أو {works}
+    if (d.pending_list !== undefined || d.history_list !== undefined) {
+      allWorks.value = [...(d.pending_list ?? []), ...(d.history_list ?? [])]
+    } else if (Array.isArray(d.works)) {
+      allWorks.value = d.works
+    } else if (Array.isArray(d)) {
+      allWorks.value = d
+    } else {
+      allWorks.value = []
+    }
   } catch { allWorks.value = [] } finally {
     loading.value = false
   }

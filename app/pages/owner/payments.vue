@@ -65,7 +65,7 @@
                   <span class="badge" :class="`badge-${p.status}`">{{ p.status_label }}</span>
                 </td>
                 <td>
-                  <button class="btn btn-ghost btn-sm" @click="openNotes(p.id)">
+                  <button class="btn btn-ghost btn-sm" @click="openNotes(p)">
                     تعليقات{{ countNotes(p.id) ? ` (${countNotes(p.id)})` : '' }}
                   </button>
                 </td>
@@ -111,11 +111,13 @@
           <div style="max-height:300px;overflow-y:auto;margin:12px 0;display:flex;flex-direction:column;gap:10px;">
             <template v-if="notesModal.notes.length">
               <div v-for="n in notesModal.notes" :key="n.id" class="note-bubble">
-                <div class="note-body">{{ n.content }}</div>
-                <div class="note-meta">
-                  <span class="note-author">{{ n.author_name }}</span>
-                  <span class="note-role">{{ n.author_role }}</span>
-                  <span class="note-time">{{ n.created_at }} · {{ n.created_at_time }}</span>
+                <div class="note-content">{{ n.content }}</div>
+                <div class="note-footer">
+                  <span class="note-time">{{ n.created_at }}{{ n.created_at_time ? ' · ' + n.created_at_time : '' }}</span>
+                  <div class="note-identity">
+                    <span class="note-role">{{ n.author_role }}</span>
+                    <span class="note-author">{{ n.author_name }}</span>
+                  </div>
                 </div>
               </div>
             </template>
@@ -197,36 +199,43 @@ const notesModal = reactive({
 
 // cache محلي للتعليقات المضافة خلال الجلسة
 const localNotesCache = new Map<number, OwnerPaymentNote[]>()
-// عداد التعليقات لكل payment
-const notesCounts = ref<Record<number, number>>({})
 
 function countNotes(id: number) {
   const p = payments.value.find(p => p.id === id)
 
-  const supervisorCount = p?.notes
-    ? p.notes.split('\n---\n').filter(c => c.trim()).length
-    : 0
-
-  const ownerCount = p?.notes_list?.length || 0
-
-  return supervisorCount + ownerCount
+  // إذا في notes_list استخدمها، غير كده احسب من notes string
+  if (p?.notes_list?.length) return p.notes_list.length
+  return p?.notes ? p.notes.split('\n---\n').filter(c => c.trim()).length : 0
 }
 
-async function openNotes(id: number) {
+async function openNotes(p: OwnerPaymentItem) {
   notesModal.open      = true
-  notesModal.loading   = true
-  notesModal.paymentId = id
+  notesModal.loading   = false
+  notesModal.paymentId = p.id
   notesModal.notes     = []
   notesModal.newNote   = ''
-  notesModal.payment   = null
-  try {
-    const data = await owner.getPaymentNotes(id)
-    notesModal.payment = data.payment
+  notesModal.payment   = { property_unit: p.tenant?.property_unit, amount: p.amount, period: p.period } as any
 
-    // 1) تعليقات المشرف من حقل notes (string بـ separator)
-    const SEPARATOR = '\n---\n'
-    const p = payments.value.find(x => x.id === id)
-    const supervisorNotes: OwnerPaymentNote[] = (p?.notes || '')
+  const SEPARATOR = '\n---\n'
+
+  // 1) تعليقات من notes_list (الأدق — كل تعليق record منفصل)
+  const fromList: OwnerPaymentNote[] = (p.notes_list || []).map((n: any) => ({
+    id: n.id,
+    content: n.content,
+    author_name: n.author_name || '—',
+    author_role: n.author_role || '',
+    created_at: n.created_at || '',
+    created_at_time: n.created_at_time || '',
+  }))
+
+  if (fromList.length) {
+    // أضف تعليقات محلية (cache) اللي أُضيفت خلال الجلسة
+    const cached = localNotesCache.get(p.id) || []
+    const extra  = cached.filter(c => !fromList.some(a => a.id === c.id))
+    notesModal.notes = [...fromList, ...extra]
+  } else {
+    // fallback: من حقل notes القديم (string بـ separator)
+    notesModal.notes = (p.notes || '')
       .split(SEPARATOR)
       .filter(c => c.trim())
       .map((content, i) => ({
@@ -237,17 +246,6 @@ async function openNotes(id: number) {
         created_at: '',
         created_at_time: '',
       }))
-      
-    // 2) تعليقات المالك من الـ API
-    const apiNotes = data.notes || []
-    const cached   = localNotesCache.get(id) || []
-    const extra    = cached.filter(c => !apiNotes.some((a: any) => a.id === c.id))
-
-    // دمج الكل
-    notesModal.notes = [...supervisorNotes, ...apiNotes, ...extra]
-    notesCounts.value[id] = notesModal.notes.length
-  } catch { showToast('تعذّر جلب التعليقات') } finally {
-    notesModal.loading = false
   }
 }
 
@@ -261,15 +259,15 @@ async function sendNote() {
   notesModal.saving = true
   try {
     const id = notesModal.paymentId!
-    // استخدم POST الأصلي
     const note = await owner.addPaymentNote(id, { content: txt })
-    console.log(note)
     notesModal.notes.push(note)
     notesModal.newNote = ''
-    // احفظ في الـ cache المحلي
-    if (!localNotesCache.has(id)) localNotesCache.set(id, [])
-    localNotesCache.get(id)!.push(note)
-    notesCounts.value[id] = notesModal.notes.length
+    // حدّث notes_list في الـ payments array مباشرة عشان يتحدث العداد
+    const row = payments.value.find(p => p.id === id)
+    if (row) {
+      if (!row.notes_list) row.notes_list = []
+      row.notes_list.push(note)
+    }
     showToast('تم إرسال التعليق')
   } catch { showToast('تعذّر إرسال التعليق') } finally {
     notesModal.saving = false
@@ -307,11 +305,12 @@ tr:last-child td { border-bottom:none; }
 .empty-state { text-align:center; padding:40px 20px; color:#8A8479; }
 .empty-state b { display:block; color:#3A3733; font-size:14.5px; margin-bottom:4px; }
 .note-bubble { background:#F3EFE8; border-radius:12px; padding:12px 14px; border-right:3px solid #E1712F; }
-.note-body   { font-size:13.5px; color:#3A3733; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
-.note-meta   { display:flex; align-items:center; gap:6px; margin-top:7px; flex-wrap:wrap; }
-.note-author { font-size:12px; font-weight:800; color:#3A3733; }
-.note-role   { font-size:11px; color:#fff; background:#8A8479; border-radius:20px; padding:1px 8px; }
-.note-time   { font-size:11px; color:#8A8479; margin-right:auto; }
+.note-content { font-size:13.5px; color:#3A3733; line-height:1.65; white-space:pre-wrap; word-break:break-word; text-align:right; margin-bottom:8px; }
+.note-footer  { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; }
+.note-identity { display:flex; align-items:center; gap:6px; }
+.note-author  { font-size:13px; font-weight:800; color:#3A3733; }
+.note-role    { font-size:11px; color:#fff; background:#3A3733; border-radius:20px; padding:2px 10px; }
+.note-time    { font-size:11.5px; color:#8A8479; }
 .notes-empty { display:flex; flex-direction:column; align-items:center; gap:6px; padding:24px 0; color:#8A8479; }
 .notes-empty span { font-size:28px; }
 .notes-empty p    { margin:0; font-size:13px; }
