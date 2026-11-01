@@ -17,6 +17,7 @@ export default defineNuxtConfig({
     'leaflet/dist/leaflet.css',
   ],
 
+  
   app: {
     head: {
       htmlAttrs: { lang: 'ar', dir: 'rtl' },

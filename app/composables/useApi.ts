@@ -533,6 +533,25 @@ export function useApi() {
     rejectNoticeRequest: (id: number, body: { rejection_reason: string }) =>
       req<NoticeRequest>(`/general-manager/notice-requests/${id}/reject`, { method: 'POST', body }),
 
+    // ─── Maintenance Works (General Manager) ─────────────────
+    maintenanceWorks: (params: { tab?: string; search?: string } = {}) => {
+      const q = new URLSearchParams()
+      if (params.tab)    q.set('tab', params.tab)
+      if (params.search) q.set('search', params.search)
+      return req<{
+        works: any[]; pagination: any
+        tabs: { active_tab: string; all_count: number; pending_count: number; approved_count: number; rejected_count: number; rated_count: number }
+      }>(`/general-manager/maintenance-works?${q}`)
+    },
+    createMaintenanceWork: (formData: FormData) =>
+      req<any>(`/general-manager/maintenance-works`, { method: 'POST', body: formData }),
+    showMaintenanceWork: (id: number) =>
+      req<any>(`/general-manager/maintenance-works/${id}`),
+    updateMaintenanceWork: (id: number, body: Record<string, any>) =>
+      req<any>(`/general-manager/maintenance-works/${id}`, { method: 'PUT', body }),
+    deleteMaintenanceWork: (id: number) =>
+      req(`/general-manager/maintenance-works/${id}`, { method: 'DELETE' }),
+
     // ─── Properties & Contracts ───────────────────────────────
     properties: (params: { search?: string; owner_id?: number; period?: string } = {}, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') => {
       const q = new URLSearchParams()

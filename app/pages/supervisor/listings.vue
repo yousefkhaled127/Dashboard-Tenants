@@ -476,20 +476,21 @@ function confirmExDecision() {
 }
 
 // ===== EXPORT EXCEL =====
-function exportExcel() {
-  const rows = filteredOffice.value.map(l => ({
-    'الكود': l.code, 'الوحدة': l.title, 'النوع': LS_TYPES[l.unitType]||'', 'المالك': lsOwnerName(l),
-    'نوع العرض': LS_DEALS[l.dealType]||'', 'سعر الإيجار': Number(l.rentPrice)||'', 'سعر البيع': Number(l.salePrice)||'',
-    'الحالة': lsStatusObj(l.status).l, 'الاكتمال %': lsChecklistPct(l),
-    'المسؤول': actorName(l.responsible), 'آخر تحديث': (l.updatedAt||'').slice(0,10),
-  }))
-  if (typeof XLSX !== 'undefined') {
-    const wb = (XLSX as any).utils.book_new()
-    const ws = (XLSX as any).utils.json_to_sheet(rows.length ? rows : [{ 'الكود': 'لا توجد وحدات' }])
-    ;(XLSX as any).utils.book_append_sheet(wb, ws, 'العقارات الشاغرة')
-    ;(XLSX as any).writeFile(wb, `مهام_العقارات_الشاغرة_${todayISO()}.xlsx`)
-  } else {
-    showToast('مكتبة XLSX غير محملة')
+async function exportExcel() {
+  try {
+    const XLSX = (await import('xlsx')).default || (await import('xlsx'))
+    const rows = filteredOffice.value.map(l => ({
+      'الكود': l.code, 'الوحدة': l.title, 'النوع': LS_TYPES[l.unitType]||'', 'المالك': lsOwnerName(l),
+      'نوع العرض': LS_DEALS[l.dealType]||'', 'سعر الإيجار': Number(l.rentPrice)||'', 'سعر البيع': Number(l.salePrice)||'',
+      'الحالة': lsStatusObj(l.status).l, 'الاكتمال %': lsChecklistPct(l),
+      'المسؤول': actorName(l.responsible), 'آخر تحديث': (l.updatedAt||'').slice(0,10),
+    }))
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ 'الكود': 'لا توجد وحدات' }])
+    XLSX.utils.book_append_sheet(wb, ws, 'العقارات الشاغرة')
+    XLSX.writeFile(wb, `مهام_العقارات_الشاغرة_${todayISO()}.xlsx`)
+  } catch {
+    showToast('تعذّر تصدير الملف')
   }
 }
 </script>
