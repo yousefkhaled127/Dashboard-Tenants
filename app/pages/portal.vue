@@ -352,9 +352,9 @@ function submitRequest() {
   formError.value   = ''
   formSuccess.value = ''
 
-  if (!form.name.trim() || !form.owner || !form.unit.trim() ||
+  if (!form.name.trim() || !form.unit.trim() ||
       !form.idNumber.trim() || !form.birthDate || !form.phone.trim() || !form.title.trim()) {
-    formError.value = 'لا يمكن إرسال الطلب إلا بعد تعبئة: اسم المستأجر، اسم المالك، رقم الوحدة، رقم الهوية، تاريخ الميلاد، رقم الجوال، وعنوان الطلب.'
+    formError.value = 'لا يمكن إرسال الطلب إلا بعد تعبئة: اسم المستأجر، رقم الوحدة، رقم الهوية، تاريخ الميلاد، رقم الجوال، وعنوان الطلب.'
     return
   }
 

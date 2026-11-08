@@ -231,9 +231,16 @@
 
 <script setup lang="ts">
 import { useApi } from '~/composables/useApi'
+import { useAuth } from '~/composables/useAuth'
 
 const { manager, auth } = useApi()
+const { user } = useAuth()
 const showToast = inject<(m: string) => void>('showToast', () => {})
+
+// الـ role المناسب حسب نوع المستخدم
+const apiRole = computed<'general-manager' | 'maintenance-supervisor'>(() =>
+  user.value?.type === 'maintenance_supervisor' ? 'maintenance-supervisor' : 'general-manager'
+)
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
@@ -254,7 +261,7 @@ const currentPage = ref(1)
 async function fetchWorks() {
   loading.value = true
   try {
-    const data = await manager.maintenanceWorks({ tab: activeTab.value })
+    const data = await manager.maintenanceWorks({ tab: activeTab.value }, apiRole.value)
     works.value = data.works || []
     pagination.value = data.pagination || null
     if (data.tabs) {
@@ -339,7 +346,7 @@ async function sendMaintenance() {
     fd.append('description',   form.description.trim())
     mediaFiles.value.forEach(f => fd.append('attachments[]', f))
 
-    await manager.createMaintenanceWork(fd)
+    await manager.createMaintenanceWork(fd, apiRole.value)
     showToast('تم إرسال تقرير الصيانة للمالك')
 
     // reset
@@ -362,7 +369,7 @@ function openDetail(w: any) { detailWork.value = w }
 async function deleteWork(id: number) {
   if (!confirm('هل أنت متأكد من حذف هذا التقرير؟')) return
   try {
-    await manager.deleteMaintenanceWork(id)
+    await manager.deleteMaintenanceWork(id, apiRole.value)
     showToast('تم حذف التقرير')
     detailWork.value = null
     await fetchWorks()

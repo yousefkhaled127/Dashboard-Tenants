@@ -144,9 +144,12 @@ const loadingTenants = ref(false)
 async function fetchTenants() {
   loadingTenants.value = true
   try {
-    const data = await collector.tenants({ period: monthKey() })
+    const data = await collector.tenants({
+      period: monthKey()
+    })
+
     tenants.value = data.tenants
-  } catch { /* تجاهل */ } finally {
+  } finally {
     loadingTenants.value = false
   }
 }

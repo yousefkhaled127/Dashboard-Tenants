@@ -1,7 +1,7 @@
 <template>
   <AppSidebar
     :userName="session.name"
-    roleLabel="مشرف نظام"
+    :roleLabel="roleLabel"
     :navItems="navItems"
     :syncTime="syncTime"
     :toast="toast"
@@ -24,7 +24,18 @@ definePageMeta({ middleware: 'auth' })
 
 const { user, fetchMe, logout: authLogout } = useAuth()
 const { manager } = useApi()
-const { load, pendingNoticeRequests, pendingNoticeDeliveries, pendingMaintReqCount } = useAppState()
+const { load, pendingNoticeRequests, pendingNoticeDeliveries } = useAppState()
+
+// عدد طلبات الصيانة من بوابة المستأجرين (portal localStorage)
+const pendingMaintReqCount = ref(0)
+function loadPortalBadge() {
+  if (!import.meta.client) return
+  try {
+    const raw = localStorage.getItem('portal-maintenance-requests')
+    const reqs = raw ? JSON.parse(raw) : []
+    pendingMaintReqCount.value = reqs.filter((r: any) => r.status === 'pending').length
+  } catch { pendingMaintReqCount.value = 0 }
+}
 
 // ── session ──
 const session = computed(() => ({
@@ -32,6 +43,17 @@ const session = computed(() => ({
   name: user.value?.name       || '',
   role: user.value?.type       || '',
 }))
+
+const roleLabel = computed(() => {
+  const map: Record<string, string> = {
+    general_manager:          'مشرف عام',
+    real_estate_supervisor:   'مشرف عقارات',
+    collection_supervisor:    'مشرف تحصيل',
+    maintenance_supervisor:   'مشرف صيانة',
+    supervisor:               'مشرف نظام',
+  }
+  return map[user.value?.type ?? ''] || user.value?.type_label || 'مشرف'
+})
 
 // ── dark mode ──
 const isDark = ref(false)
@@ -65,6 +87,7 @@ async function fetchDashboardData() {
     pendingCount.value = data.tabs.pending_count
   } catch { /* silent */ }
   load()
+  loadPortalBadge()
 }
 
 async function refresh() {
@@ -87,25 +110,63 @@ provide('refreshBadges',    fetchDashboardData)
 provide('pendingCount',     pendingCount)
 
 // ── nav ──
-const navItems = computed(() => [
-  { to: '/supervisor',                label: 'نظرة عامة' },
-  { to: '/supervisor/import',         label: 'استيراد إكسل' },
-  { to: '/supervisor/tenants',        label: 'المستأجرون' },
-  { to: '/supervisor/vacancies',      label: 'الشقق الشاغرة' },
-  { to: '/supervisor/listings',       label: 'مهام العقارات الشاغرة' },
-  { to: '/supervisor/featured',       label: 'التسويق المميز للعقارات' },
-  { to: '/supervisor/collectors',     label: 'المستخدمون والصلاحيات' },
-  { to: '/supervisor/payments',       label: 'اعتماد السدادات',          badge: pendingCount.value || null },
-  { to: '/supervisor/ownerpayments',  label: 'سدادات الملاك' },
-  { to: '/supervisor/notices',        label: 'الإشعارات',
-    badge: (pendingNoticeRequests.value.length + pendingNoticeDeliveries.value.length) || null },
-  { to: '/supervisor/properties',     label: 'إدارة الأملاك والعقود' },
-  { to: '/supervisor/maintenance',    label: 'أعمال الصيانة' },
-  { to: '/supervisor/tenantrequests', label: 'طلبات صيانة المستأجرين',   badge: pendingMaintReqCount.value || null },
-  { to: '/supervisor/reports',        label: 'التقارير الشهرية' },
-  { to: '/supervisor/smslog',         label: 'سجل رسائل SMS' },
-  { to: '/supervisor/settings',       label: 'كلمة المرور والبيانات' },
-])
+const navItems = computed(() => {
+  const type = user.value?.type ?? ''
+  const noticeBadge = (pendingNoticeRequests.value.length + pendingNoticeDeliveries.value.length) || null
+
+  // مشرف الصيانة — قائمة مخصوصة
+  if (type === 'maintenance_supervisor') {
+    return [
+      { to: '/supervisor/listings',       label: 'مهام العقارات الشاغرة' },
+      { to: '/supervisor/featured',       label: 'التسويق المميز للعقارات' },
+      { to: '/supervisor/maintenance',    label: 'أعمال الصيانة' },
+      { to: '/supervisor/tenantrequests', label: 'طلبات صيانة المستأجرين', badge: pendingMaintReqCount.value || null },
+      { to: '/supervisor/notices',        label: 'الإشعارات', badge: noticeBadge },
+      { to: '/supervisor/smslog',         label: 'رسائلي (SMS)' },
+      { to: '/supervisor/settings',       label: 'كلمة المرور والبيانات' },
+    ]
+  }
+
+  // مشرف العقارات — بدون استيراد إكسل، صلاحيات، صيانة
+  if (type === 'real_estate_supervisor') {
+    return [
+      { to: '/supervisor',                label: 'نظرة عامة' },
+      { to: '/supervisor/tenants',        label: 'المستأجرون' },
+      { to: '/supervisor/vacancies',      label: 'الشقق الشاغرة' },
+      { to: '/supervisor/listings',       label: 'مهام العقارات الشاغرة' },
+      { to: '/supervisor/featured',       label: 'التسويق المميز للعقارات' },
+      { to: '/supervisor/unitreports',    label: 'تقارير الوحدات' },
+      { to: '/supervisor/payments',       label: 'اعتماد السدادات',   badge: pendingCount.value || null },
+      { to: '/supervisor/ownerpayments',  label: 'سدادات الملاك' },
+      { to: '/supervisor/notices',        label: 'الإشعارات',         badge: noticeBadge },
+      { to: '/supervisor/properties',     label: 'إدارة الأملاك والعقود' },
+      { to: '/supervisor/reports',        label: 'التقارير الشهرية' },
+      { to: '/supervisor/smslog',         label: 'سجل رسائل SMS' },
+      { to: '/supervisor/settings',       label: 'كلمة المرور والبيانات' },
+    ]
+  }
+
+  // باقي المشرفين — القائمة الكاملة
+  return [
+    { to: '/supervisor',                label: 'نظرة عامة' },
+    { to: '/supervisor/import',         label: 'استيراد إكسل' },
+    { to: '/supervisor/tenants',        label: 'المستأجرون' },
+    { to: '/supervisor/vacancies',      label: 'الشقق الشاغرة' },
+    { to: '/supervisor/listings',       label: 'مهام العقارات الشاغرة' },
+    { to: '/supervisor/featured',       label: 'التسويق المميز للعقارات' },
+    { to: '/supervisor/unitreports',    label: 'تقارير الوحدات' },
+    { to: '/supervisor/collectors',     label: 'المستخدمون والصلاحيات' },
+    { to: '/supervisor/payments',       label: 'اعتماد السدادات',          badge: pendingCount.value || null },
+    { to: '/supervisor/ownerpayments',  label: 'سدادات الملاك' },
+    { to: '/supervisor/notices',        label: 'الإشعارات',                badge: noticeBadge },
+    { to: '/supervisor/properties',     label: 'إدارة الأملاك والعقود' },
+    { to: '/supervisor/maintenance',    label: 'أعمال الصيانة' },
+    { to: '/supervisor/tenantrequests', label: 'طلبات صيانة المستأجرين',   badge: pendingMaintReqCount.value || null },
+    { to: '/supervisor/reports',        label: 'التقارير الشهرية' },
+    { to: '/supervisor/smslog',         label: 'سجل رسائل SMS' },
+    { to: '/supervisor/settings',       label: 'كلمة المرور والبيانات' },
+  ]
+})
 
 async function logout() {
   await authLogout()

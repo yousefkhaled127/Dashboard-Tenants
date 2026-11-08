@@ -307,6 +307,28 @@ export interface Listing {
   // close data
   closedAt?: string; closedBy?: string; closeReason?: string; closeNote?: string
   closeParty?: any
+  // ── report / analytics fields ──
+  views?: number
+  inquiries?: { total: number; related: number; calls: number }
+  visitsComplete?: number
+  assignees?: string[]           // actor keys مثل 'supervisor:12'
+  operators?: number             // عدد المشغّلين
+  lastRead?: string              // ISO date
+  marketingRequests?: MarketingRequest[]
+}
+
+export interface MarketingRequest {
+  id: string
+  listingId: string
+  type: 'photo' | 'video' | 'campaign' | 'other'
+  typeLabel: string
+  note?: string
+  status: 'pending' | 'approved' | 'rejected'
+  requestedBy: string
+  requestedAt: string
+  decidedBy?: string
+  decidedAt?: string
+  rejectReason?: string
 }
 
 // ---------- Featured ----------
@@ -338,6 +360,7 @@ export interface ExtendedAppState {
   listingSeq: number
   extSeq: number
   smsSettings: SmsSettings
+  mrSeq: number   // marketing request sequence
 }
 
 // ==================== DEFAULT LISTING PLATFORMS ====================
@@ -355,7 +378,7 @@ export const LS_DEFAULT_PLATFORMS: ListingPlatform[] = [
 const extState = ref<ExtendedAppState>({
   vacancies: [], contracts: [], properties: [],
   listings: [], featured: [], listingPlatforms: JSON.parse(JSON.stringify(LS_DEFAULT_PLATFORMS)),
-  listingSeq: 0, extSeq: 0,
+  listingSeq: 0, extSeq: 0, mrSeq: 0,
   smsSettings: { enabled: false, webhookUrl: '' },
 })
 
@@ -377,6 +400,7 @@ export function useExtState() {
                                       extState.value.listingPlatforms  = parsed.listingPlatforms
         if (parsed.listingSeq != null) extState.value.listingSeq       = parsed.listingSeq
         if (parsed.extSeq != null)     extState.value.extSeq           = parsed.extSeq
+        if (parsed.mrSeq != null)      extState.value.mrSeq            = parsed.mrSeq
         if (parsed.smsSettings)       extState.value.smsSettings       = parsed.smsSettings
       }
     } catch { /* silent */ }
@@ -434,6 +458,11 @@ export function useExtState() {
     return 'EX-' + String(extState.value.extSeq).padStart(4, '0')
   }
 
+  const mrNextId = () => {
+    extState.value.mrSeq = (Number(extState.value.mrSeq) || 0) + 1
+    return 'MR-' + String(extState.value.mrSeq).padStart(4, '0')
+  }
+
   const lsOwnerName = (l: Listing) => {
     if (l.ownerId) {
       const o = (useState<any>('tahsilat-owners')?.value || []).find((x: any) => x.id === l.ownerId)
@@ -468,7 +497,7 @@ export function useExtState() {
     extState, load, save, uid,
     vacanciesSorted, vacantCount, vacPropName,
     getListing, lsOffice, exAll, ftLive, ftByListing,
-    lsMyOpenCount, exPendingCount, ftMyOpenCount, lsNextCode, exNextCode, lsOwnerName,
+    lsMyOpenCount, exPendingCount, ftMyOpenCount, lsNextCode, exNextCode, mrNextId, lsOwnerName,
     getProperty, propertyContracts, currentContracts, contractState,
     contractsNeedingRenewal, expiringContractsCount,
   }

@@ -216,8 +216,10 @@ async function login() {
       navigateTo('/owner')
     } else if (t === 'collector') {
       navigateTo('/collector')
+    } else if (t === 'maintenance_supervisor') {
+      navigateTo('/supervisor/listings')
     } else {
-      // all supervisor subtypes → /supervisor
+      // all other supervisor subtypes → /supervisor
       navigateTo('/supervisor')
     }
   } catch (e: any) {

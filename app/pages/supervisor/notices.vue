@@ -136,9 +136,15 @@
 
 <script setup lang="ts">
 import { useApi, type NoticeRequest } from '~/composables/useApi'
+import { useAuth } from '~/composables/useAuth'
 
 const { manager } = useApi()
+const { user } = useAuth()
 const showToast = inject<(m: string) => void>('showToast', () => {})
+
+const apiRole = computed<'general-manager' | 'maintenance-supervisor'>(() =>
+  user.value?.type === 'maintenance_supervisor' ? 'maintenance-supervisor' : 'general-manager'
+)
 
 const tab      = ref('new')
 const searchQ  = ref('')
@@ -154,9 +160,10 @@ function onSearchInput() {
 
 async function fetchList() {
   try {
-    const data = await manager.noticeRequests({ tab: tab.value, search: searchQ.value || undefined })
+    const data = await manager.noticeRequests({ tab: tab.value, search: searchQ.value || undefined }, apiRole.value)
     requests.value = data.requests
     stats.value    = data.statistics
+    console.log(data)
   } catch { showToast('تعذّر جلب الإشعارات') }
 }
 
@@ -212,7 +219,7 @@ async function confirmIssue() {
     const fd = new FormData()
     fd.append('notice_content', issueText.value.trim())
     if (issueFile.value) fd.append('notice_file', issueFile.value)
-    await manager.issueNotice(issuingId.value, fd)
+    await manager.issueNotice(issuingId.value, fd, apiRole.value)
     showToast('تم إصدار الإشعار، بانتظار قيام المحصل بالتسليم')
     issuingId.value = null
     await fetchList()
@@ -227,7 +234,7 @@ async function confirmIssue() {
 async function approveDelivery(id: number) {
   busy.value = id
   try {
-    await manager.approveNoticeDelivery(id)
+    await manager.approveNoticeDelivery(id, apiRole.value)
     showToast('تم اعتماد تسليم الإشعار')
     await fetchList()
   } catch (e: any) {
@@ -249,7 +256,7 @@ async function confirmReject() {
   try {
     await manager.rejectNoticeRequest(rejectingId.value, {
       rejection_reason: rejectReason.value.trim() || 'بدون سبب محدد',
-    })
+    }, apiRole.value)
     showToast('تم رفض طلب الإشعار')
     rejectingId.value = null
     await fetchList()

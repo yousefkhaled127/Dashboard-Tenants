@@ -517,41 +517,41 @@ export function useApi() {
       req(`/general-manager/owner-payments/${id}/notes`, { method: 'PUT', body }),
 
     // Notice requests (new v2 endpoint)
-    noticeRequests: (params: { tab?: string; search?: string; collector_id?: number; page?: number } = {}) => {
+    noticeRequests: (params: { tab?: string; search?: string; collector_id?: number; page?: number } = {}, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') => {
       const q = new URLSearchParams()
       if (params.tab)          q.set('tab', params.tab)
       if (params.search)       q.set('search', params.search)
       if (params.collector_id) q.set('collector_id', String(params.collector_id))
       if (params.page)         q.set('page', String(params.page))
-      return req<{ requests: NoticeRequest[]; pagination: Pagination; statistics: NoticeStatistics }>(`/general-manager/notice-requests?${q}`)
+      return req<{ requests: NoticeRequest[]; pagination: Pagination; statistics: NoticeStatistics }>(`/${role}/notice-requests?${q}`)
     },
-    showNoticeRequest: (id: number) =>
-      req<NoticeRequest>(`/general-manager/notice-requests/${id}`),
-    issueNotice: (id: number, formData: FormData) =>
-      req<NoticeRequest>(`/general-manager/notice-requests/${id}/issue`, { method: 'POST', body: formData }),
-    approveNoticeDelivery: (id: number) =>
-      req<NoticeRequest>(`/general-manager/notice-requests/${id}/approve-delivery`, { method: 'POST' }),
-    rejectNoticeRequest: (id: number, body: { rejection_reason: string }) =>
-      req<NoticeRequest>(`/general-manager/notice-requests/${id}/reject`, { method: 'POST', body }),
+    showNoticeRequest: (id: number, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') =>
+      req<NoticeRequest>(`/${role}/notice-requests/${id}`),
+    issueNotice: (id: number, formData: FormData, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') =>
+      req<NoticeRequest>(`/${role}/notice-requests/${id}/issue`, { method: 'POST', body: formData }),
+    approveNoticeDelivery: (id: number, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') =>
+      req<NoticeRequest>(`/${role}/notice-requests/${id}/approve-delivery`, { method: 'POST' }),
+    rejectNoticeRequest: (id: number, body: { rejection_reason: string }, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') =>
+      req<NoticeRequest>(`/${role}/notice-requests/${id}/reject`, { method: 'POST', body }),
 
-    // ─── Maintenance Works (General Manager) ─────────────────
-    maintenanceWorks: (params: { tab?: string; search?: string } = {}) => {
+    // ─── Maintenance Works (General Manager / Maintenance Supervisor) ────
+    maintenanceWorks: (params: { tab?: string; search?: string } = {}, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') => {
       const q = new URLSearchParams()
       if (params.tab)    q.set('tab', params.tab)
       if (params.search) q.set('search', params.search)
       return req<{
         works: any[]; pagination: any
         tabs: { active_tab: string; all_count: number; pending_count: number; approved_count: number; rejected_count: number; rated_count: number }
-      }>(`/general-manager/maintenance-works?${q}`)
+      }>(`/${role}/maintenance-works?${q}`)
     },
-    createMaintenanceWork: (formData: FormData) =>
-      req<any>(`/general-manager/maintenance-works`, { method: 'POST', body: formData }),
-    showMaintenanceWork: (id: number) =>
-      req<any>(`/general-manager/maintenance-works/${id}`),
-    updateMaintenanceWork: (id: number, body: Record<string, any>) =>
-      req<any>(`/general-manager/maintenance-works/${id}`, { method: 'PUT', body }),
-    deleteMaintenanceWork: (id: number) =>
-      req(`/general-manager/maintenance-works/${id}`, { method: 'DELETE' }),
+    createMaintenanceWork: (formData: FormData, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') =>
+      req<any>(`/${role}/maintenance-works`, { method: 'POST', body: formData }),
+    showMaintenanceWork: (id: number, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') =>
+      req<any>(`/${role}/maintenance-works/${id}`),
+    updateMaintenanceWork: (id: number, body: Record<string, any>, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') =>
+      req<any>(`/${role}/maintenance-works/${id}`, { method: 'PUT', body }),
+    deleteMaintenanceWork: (id: number, role: 'general-manager' | 'maintenance-supervisor' = 'general-manager') =>
+      req(`/${role}/maintenance-works/${id}`, { method: 'DELETE' }),
 
     // ─── Properties & Contracts ───────────────────────────────
     properties: (params: { search?: string; owner_id?: number; period?: string } = {}, role: 'general-manager' | 'real-estate-supervisor' = 'general-manager') => {

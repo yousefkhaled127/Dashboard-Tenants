@@ -64,6 +64,25 @@
 
         <p v-if="r.description" class="req-desc">{{ r.description }}</p>
 
+        <!-- Map location -->
+        <div v-if="r.latitude && r.longitude" class="req-map-wrap">
+          <iframe
+            :src="`https://maps.google.com/maps?q=${r.latitude},${r.longitude}&z=16&output=embed`"
+            class="req-map"
+            frameborder="0"
+            allowfullscreen
+            loading="lazy"
+          />
+          <div class="req-map-footer">
+            <span v-if="r.address" class="req-map-addr">📍 {{ r.address }}</span>
+            <a
+              :href="`https://www.google.com/maps?q=${r.latitude},${r.longitude}`"
+              target="_blank"
+              class="req-map-link"
+            >فتح في خرائط Google ↗</a>
+          </div>
+        </div>
+
         <!-- Media -->
         <div v-if="r.media?.length" class="req-media">
           <template v-for="(med, i) in r.media" :key="i">
@@ -223,6 +242,13 @@ function confirmReview() {
 .pill-tabs { display:flex; gap:6px; background:var(--bg); padding:4px; border-radius:10px; width:fit-content; flex-wrap:wrap; }
 .pill-tab  { border:none; background:transparent; padding:8px 16px; border-radius:8px; font-weight:700; font-size:13px; color:var(--muted); cursor:pointer; }
 .pill-tab.active { background:var(--surface); color:var(--charcoal); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+
+.req-map-wrap  { margin:10px 0; border-radius:12px; overflow:hidden; border:1px solid var(--line); }
+.req-map       { width:100%; height:220px; display:block; }
+.req-map-footer{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; padding:8px 12px; background:var(--bg); }
+.req-map-addr  { font-size:12px; color:var(--charcoal); font-weight:700; flex:1; }
+.req-map-link  { font-size:12px; color:var(--orange); font-weight:700; text-decoration:none; white-space:nowrap; }
+.req-map-link:hover { text-decoration:underline; }
 
 .req-card     { margin-bottom:16px; }
 .req-header   { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px; }

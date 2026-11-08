@@ -60,23 +60,51 @@ const collected = computed(() =>
 const target = computed(() =>
   myTenants.value.reduce((s, t) => s + Number(t.monthly_target || 0), 0)
 )
+console.log('Target:', fmtMoney(target.value))
 const pct = computed(() => target.value ? Math.min(100, Math.round(collected.value / target.value * 100)) : 0)
+
 const allTime = computed(() =>
   myPayments.value.filter(p => p.status === 'approved').reduce((s, p) => s + Number(p.amount), 0)
 )
 
 const chartEl = ref<HTMLCanvasElement | null>(null)
 let chart: Chart | null = null
-
 async function loadData() {
   try {
-    const [tData, pData] = await Promise.all([
-      collector.tenants({ period: mk }),
+    // جلب أول صفحة
+    const [firstTenants, pData] = await Promise.all([
+      collector.tenants({ period: mk, page: 1 }),
       collector.payments({ period: mk, status: 'approved' }),
     ])
-    myTenants.value = tData.tenants
+
+    // معرفة عدد الصفحات
+    const lastPage = firstTenants.pagination.last_page
+
+    // جلب باقي الصفحات
+    const remainingPages = await Promise.all(
+      Array.from({ length: lastPage - 1 }, (_, i) =>
+        collector.tenants({
+          period: mk,
+          page: i + 2,
+        })
+      )
+    )
+
+    // تجميع كل المستأجرين
+    myTenants.value = [
+      ...firstTenants.tenants,
+      ...remainingPages.flatMap(page => page.tenants),
+    ]
+
     myPayments.value = pData.payments
-  } catch { /* تجاهل */ }
+
+    console.log('عدد المستأجرين:', myTenants.value.length)
+    console.log('إجمالي المستهدف:', target.value)
+    console.log('المستهدف بالتنسيق:', fmtMoney(target.value))
+
+  } catch (error) {
+    console.error('Error loading data:', error)
+  }
 }
 
 onMounted(async () => {
