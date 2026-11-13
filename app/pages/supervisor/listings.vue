@@ -225,8 +225,8 @@
         </template>
         <div class="field"><label>المسؤول</label>
           <select v-model="newForm.responsible">
-            <option value="">أنا ({{ myActorKey }})</option>
-            <option v-for="s in staffOptions" :key="s.key" :value="s.key">{{ s.name }} — {{ s.role }}</option>
+            <option value="" disabled>اختر المسؤول</option>
+            <option v-for="s in staffOptions" :key="s.key" :value="s.key">{{ s.name }}</option>
           </select>
         </div>
         <div class="modal-actions">
@@ -271,7 +271,7 @@ import { useApi } from '~/composables/useApi'
 
 const { extState, load, save, uid, lsOffice, exAll, exPendingCount, lsNextCode, exNextCode, lsOwnerName, getListing } = useExtState()
 const { fmtDate, fmtMoney, todayISO } = useFormat()
-const { auth } = useApi()
+const { auth, manager } = useApi()
 
 const showToast = inject<(m:string)=>void>('showToast', () => {})
 const supervisorSession = inject<any>('supervisorSession')
@@ -279,13 +279,14 @@ const supervisorSession = inject<any>('supervisorSession')
 onMounted(async () => {
   load()
   try {
-    const users = await auth.usersByType('supervisor')
-    const cols  = await auth.usersByType('collector')
-    staffOptions.value = [
-      ...users.map(u => ({ key:`supervisor:${u.id}`, name:u.name, role:u.type_label||'مشرف' })),
-      ...cols.map(u  => ({ key:`collector:${u.id}`,  name:u.name, role:'محصل' })),
-    ]
-  } catch {}
+    const supRes = await manager.supervisors()
+    staffOptions.value = supRes.supervisors.map(u => ({ key:`supervisor:${u.id}`, name:u.name, role:u.type_label||'مشرف' }))
+  } catch {
+    const session = supervisorSession?.value
+    if (session?.id) {
+      staffOptions.value = [{ key: `supervisor:${session.id}`, name: session.name || 'أنا', role: session.type_label || 'مشرف' }]
+    }
+  }
 })
 
 // ===== CONSTANTS =====

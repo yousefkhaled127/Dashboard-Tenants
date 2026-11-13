@@ -59,18 +59,60 @@
 
 <script setup lang="ts">
 import { useApi, type OwnerNotificationItem } from '~/composables/useApi'
+import { useExtState, useAppState } from '~/composables/useAppState'
+import { useAuthStore } from '~/stores/auth'
 
 const { owner } = useApi()
+const { extState, load: loadExt, lsOwnerName } = useExtState()
+const { addSms, save: saveState } = useAppState()
+const authStore = useAuthStore()
 const showToast = inject<(m: string) => void>('showToast', () => {})
 
 // ─── State ───────────────────────────────────────────────────────────────────
 const loading = ref(true)
 const error   = ref('')
-const activeTab = ref<'all' | 'payments' | 'maintenance' | 'maintenance_req'>('all')
+const activeTab = ref<'all' | 'payments' | 'maintenance' | 'maintenance_req' | 'marketing'>('all')
 
 interface SmsItem extends OwnerNotificationItem {}
 
 const items = ref<SmsItem[]>([])
+
+// ── طلبات التسويق من extState ──────────────────────────────────────────────
+const marketingItems = computed<SmsItem[]>(() => {
+  const name = authStore.user?.name?.trim().toLowerCase() || ''
+  const uid_ = authStore.user?.id
+  const myListings = extState.value.listings.filter(l => {
+    if (l.kind === 'external') return false
+    if (uid_ && l.ownerId && String(l.ownerId) === String(uid_)) return true
+    const ln = (lsOwnerName(l) || '').trim().toLowerCase()
+    return name && ln && ln === name
+  })
+  const statusMap: Record<string, { label: string; cls: string }> = {
+    pending:     { label: 'بانتظار المراجعة', cls: 'pending'     },
+    approved:    { label: 'معتمد',             cls: 'approved'    },
+    rejected:    { label: 'مرفوض',             cls: 'rejected'    },
+    in_progress: { label: 'تم التنفيذ',         cls: 'approved'    },
+    done:        { label: 'تم التنفيذ',          cls: 'approved'    },
+  }
+  return myListings.flatMap(l =>
+    (l.marketingRequests ?? []).map(mr => {
+      const s = statusMap[mr.status] ?? { label: mr.status, cls: 'neutral' }
+      const price = (mr as any).approvedPrice
+      return {
+        id:          `mr-${mr.id}`,
+        type:        'marketing' as any,
+        typeLabel:   'تسويق إضافي',
+        badgeClass:  'marketing',
+        statusLabel: s.label,
+        statusClass: s.cls,
+        body:        `${mr.typeLabel} — ${l.title || l.code}`,
+        sub:         price ? `التكلفة المعتمدة: ${Number(price).toLocaleString('ar-SA-u-nu-latn')} ر.س${(mr as any).approvedNote ? ' · ' + (mr as any).approvedNote : ''}` : (mr.note || undefined),
+        date:        new Date(mr.requestedAt).toLocaleDateString('ar-SA-u-nu-latn', { year:'numeric', month:'short', day:'numeric' }),
+        sortKey:     mr.requestedAt,
+      } as SmsItem
+    })
+  ).sort((a, b) => b.sortKey.localeCompare(a.sortKey))
+})
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 async function fetchAll() {
@@ -182,19 +224,22 @@ async function fetchAll() {
 const payCount     = computed(() => items.value.filter(i => i.type === 'payment').length)
 const workCount    = computed(() => items.value.filter(i => i.type === 'maintenance').length)
 const reqCount     = computed(() => items.value.filter(i => i.type === 'maintenance_req').length)
+const mrCount      = computed(() => marketingItems.value.length)
 
 const tabs = computed(() => [
-  { key: 'all',             label: 'الكل',         count: items.value.length },
-  { key: 'payments',        label: 'السدادات',      count: payCount.value },
-  { key: 'maintenance',     label: 'أعمال الصيانة', count: workCount.value },
-  { key: 'maintenance_req', label: 'طلبات الصيانة', count: reqCount.value },
+  { key: 'all',             label: 'الكل',              count: items.value.length + mrCount.value },
+  { key: 'payments',        label: 'السدادات',           count: payCount.value },
+  { key: 'maintenance',     label: 'أعمال الصيانة',      count: workCount.value },
+  { key: 'maintenance_req', label: 'طلبات الصيانة',      count: reqCount.value },
+  { key: 'marketing',       label: 'طلبات التسويق',      count: mrCount.value },
 ])
 
 const filtered = computed(() => {
-  if (activeTab.value === 'all') return items.value
+  if (activeTab.value === 'all')             return [...items.value, ...marketingItems.value].sort((a,b)=>b.sortKey.localeCompare(a.sortKey))
   if (activeTab.value === 'payments')        return items.value.filter(i => i.type === 'payment')
   if (activeTab.value === 'maintenance')     return items.value.filter(i => i.type === 'maintenance')
   if (activeTab.value === 'maintenance_req') return items.value.filter(i => i.type === 'maintenance_req')
+  if (activeTab.value === 'marketing')       return marketingItems.value
   return items.value
 })
 
@@ -203,7 +248,7 @@ const fmtMoney = (n: number | string) =>
   (Number(n) || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' ر.س'
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
-onMounted(fetchAll)
+onMounted(() => { loadExt(); fetchAll() })
 </script>
 
 <style scoped>
@@ -286,6 +331,7 @@ onMounted(fetchAll)
 .badge-payment     { background: #D4F0E2; color: #1A7A40; }
 .badge-maintenance { background: #FEF3CD; color: #A07000; }
 .badge-req         { background: #DCE9F8; color: #2560A0; }
+.badge-marketing   { background: #FBE9DC; color: #B85423; }
 
 .sms-status {
   font-size: 11px;

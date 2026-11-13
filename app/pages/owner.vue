@@ -18,11 +18,15 @@
 <script setup lang="ts">
 import { useAuth } from '~/composables/useAuth'
 import { useApi  } from '~/composables/useApi'
+import { useExtState } from '~/composables/useAppState'
+import { useAuthStore } from '~/stores/auth'
 
 definePageMeta({ middleware: 'auth' })
 
 const { user, fetchMe, logout: authLogout } = useAuth()
 const { owner } = useApi()
+const { extState, load, lsOwnerName } = useExtState()
+const authStore = useAuthStore()
 
 const syncTime = ref('—')
 const toast    = ref('')
@@ -31,6 +35,21 @@ const toast    = ref('')
 const pendingMaintCount = ref(0)   // أعمال الصيانة بانتظار قرار المالك
 const pendingSmsCount   = ref(0)   // طلبات صيانة محوّلة للمالك (الرسائل)
 const pendingPayCount   = ref(0)   // سدادات قيد المراجعة
+
+// عدد طلبات التسويق الإضافي المعلّقة (من localStorage)
+const pendingMrCount = computed(() => {
+  const ownerName = authStore.user?.name?.trim().toLowerCase() || ''
+  const ownerId   = authStore.user?.id
+  return extState.value.listings
+    .filter(l => {
+      if (l.kind === 'external') return false
+      if (ownerId && l.ownerId && String(l.ownerId) === String(ownerId)) return true
+      const ln = (lsOwnerName(l) || '').trim().toLowerCase()
+      return ownerName && ln && ln === ownerName
+    })
+    .flatMap(l => l.marketingRequests ?? [])
+    .filter(mr => mr.status === 'pending').length
+})
 
 let _pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -104,6 +123,7 @@ const navItems = computed(() => [
   { to: '/owner/properties',  label: 'إدارة أملاكي' },
   { to: '/owner/maintenance', label: 'أعمال الصيانة',   badge: pendingMaintCount.value || null },
   { to: '/owner/sms',         label: 'الرسائل (SMS)',    badge: pendingSmsCount.value   || null },
+  { to: '/owner/unitreports', label: 'تقارير وحداتي',   badge: pendingMrCount.value || null },
   { to: '/owner/reports',     label: 'التقارير الشهرية' },
   { to: '/owner/settings',    label: 'كلمة المرور' },
 ])
@@ -117,6 +137,7 @@ async function logout() {
 watch(() => useRoute().path, fetchDashboardData)
 
 onMounted(async () => {
+  load()  // تحميل extState عشان يحسب pendingMrCount
   // ثيم
   try {
     const saved = localStorage.getItem('tahsilat-theme')

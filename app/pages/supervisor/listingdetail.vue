@@ -305,7 +305,11 @@ onMounted(async () => {
       ...sups.map(u => ({ key:`supervisor:${u.id}`, name:u.name, role:u.type_label||'مشرف' })),
       ...cols.map(u => ({ key:`collector:${u.id}`,  name:u.name, role:'محصل' })),
     ]
-  } catch {}
+  } catch {
+    // fallback: أضف المشرف الحالي من الـ session
+    const s = supervisorSession?.value
+    if (s?.id) allStaff.value = [{ key:`supervisor:${s.id}`, name:s.name||'أنا', role:s.type_label||'مشرف' }]
+  }
   initDraft()
 })
 
@@ -341,7 +345,12 @@ const publishedPlats = computed(() => allPlatforms.value.filter(p => !!(listing.
 const canDelete = computed(() => true) // general supervisor only in real app
 
 // ===== DRAFT =====
-const draft = ref<any>({})
+const draft = ref<any>({
+  ownerName: '', ownerPhone: '', brokerageNo: '',
+  description: '', dealType: '', rentPrice: '', salePrice: '',
+  photos: [], license: { number: '', expiry: '', file: null }, guard: { name: '', phone: '', unitCode: '' },
+  location: null,
+})
 const isDirty = ref(false)
 const gmapsInput = ref('')
 

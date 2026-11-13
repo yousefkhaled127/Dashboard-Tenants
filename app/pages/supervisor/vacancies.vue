@@ -347,7 +347,7 @@ import { useExtState, type Vacancy } from '~/composables/useAppState'
 import { useFormat } from '~/composables/useFormat'
 import { useApi } from '~/composables/useApi'
 
-const { extState, load, save, uid, vacanciesSorted, vacantCount, vacPropName } = useExtState()
+const { extState, load, save, uid, vacanciesSorted, vacantCount, vacPropName, lsNextCode } = useExtState()
 const { fmtDate, fmtMoney, todayISO, monthKey, lastNMonths } = useFormat()
 const { auth } = useApi()
 
@@ -425,16 +425,93 @@ function saveVacancy() {
   const now = new Date().toISOString()
   if (editingId.value) {
     const v = extState.value.vacancies.find(x => x.id === editingId.value)
-    if (v) Object.assign(v, { ...form.value, updatedAt: now })
+    if (v) {
+      Object.assign(v, { ...form.value, updatedAt: now })
+      // تحديث الـ Listing المقابلة إن وجدت
+      if (v.listingId) {
+        const ls = extState.value.listings.find(l => l.id === v.listingId)
+        if (ls) {
+          ls.title = `${form.value.propertyName} — وحدة ${form.value.unit}`
+          ls.unitNo = form.value.unit
+          ls.rentPrice = String(form.value.price)
+          ls.rentCycle = form.value.priceCycle
+          ls.updatedAt = now
+        }
+      }
+    }
   } else {
+    // إنشاء الشقة الشاغرة
+    const vacId = uid()
+    const lsCode = lsNextCode()
+    const listingId = uid() + '-ls'
+
+    // إنشاء Listing مقابلة لتقارير الوحدات
+    const newListing = {
+      id: listingId,
+      code: lsCode,
+      extCode: '',
+      kind: 'office' as const,
+      source: 'vacancy',
+      title: `${form.value.propertyName} — وحدة ${form.value.unit}`,
+      unitType: 'apartment',
+      status: 'name_only',
+      vacant: true,
+      responsible: '',
+      createdBy: 'sup',
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: 'sup',
+      propertyId: null,
+      unitNo: form.value.unit,
+      ownerMode: 'manual' as const,
+      ownerId: null,
+      ownerName: '',
+      ownerPhone: '',
+      brokerageNo: '',
+      brokerageDate: '',
+      description: form.value.notes || '',
+      answers: {},
+      dealType: 'rent',
+      rentPrice: String(form.value.price),
+      rentCycle: form.value.priceCycle,
+      salePrice: '',
+      photos: [],
+      videos: [],
+      videoUrl: '',
+      license: {},
+      guard: {},
+      location: null,
+      platforms: {},
+      history: [{ id: uid(), at: now, by: 'sup', type: 'create', note: 'أُضيفت من الشقق الشاغرة' }],
+      vacancyId: vacId,
+      views: 0,
+      inquiries: { total: 0, related: 0, calls: 0 },
+      visitsComplete: 0,
+      operators: 0,
+      marketingRequests: [],
+    }
+    extState.value.listings.push(newListing)
+
+    // إنشاء الشقة الشاغرة مع ربطها بالـ Listing
     extState.value.vacancies.push({
-      id: uid(), propertyId: null, propertyName: form.value.propertyName, unit: form.value.unit,
-      price: form.value.price, priceCycle: form.value.priceCycle, rooms: form.value.rooms,
-      location: form.value.location, notes: form.value.notes, status: 'vacant',
+      id: vacId,
+      propertyId: null,
+      propertyName: form.value.propertyName,
+      unit: form.value.unit,
+      price: form.value.price,
+      priceCycle: form.value.priceCycle,
+      rooms: form.value.rooms,
+      location: form.value.location,
+      notes: form.value.notes,
+      status: 'vacant',
       depositBy: null, depositAmount: 0, depositDate: '',
       rentedBy: null, rentedDate: '', rentPrice: 0, tenantName: '', tenantPhone: '',
-      history: [{ status:'vacant', collectorId:null, note:'إضافة الشقة', at:now, by:'sup' }],
-      handover: null, createdAt: now, createdBy: 'sup', updatedAt: now,
+      history: [{ status: 'vacant', collectorId: null, note: 'إضافة الشقة', at: now, by: 'sup' }],
+      handover: null,
+      createdAt: now,
+      createdBy: 'sup',
+      updatedAt: now,
+      listingId,
     })
   }
   save(); showToast(editingId.value ? 'تم التعديل' : 'تمت إضافة الشقة'); closeModal()
@@ -478,6 +555,11 @@ function saveStatus() {
 const deleteId = ref<string|null>(null)
 function confirmDelete(id: string) { deleteId.value=id }
 function doDelete() {
+  // حذف الـ Listing المقابلة في تقارير الوحدات
+  const vac = extState.value.vacancies.find(v => v.id === deleteId.value)
+  if (vac?.listingId) {
+    extState.value.listings = extState.value.listings.filter(l => l.id !== vac.listingId)
+  }
   extState.value.vacancies = extState.value.vacancies.filter(v => v.id !== deleteId.value)
   save(); showToast('تم حذف الشقة'); deleteId.value=null
 }

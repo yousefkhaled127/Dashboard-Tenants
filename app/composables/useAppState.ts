@@ -263,6 +263,7 @@ export interface Vacancy {
   tenantName: string; tenantPhone: string
   history: VacancyHistory[]; handover: VacancyHandover | null
   createdAt: string; createdBy: string; updatedAt: string
+  listingId?: string | null   // ربط بـ Listing في تقارير الوحدات
 }
 
 // ---------- Contracts ----------

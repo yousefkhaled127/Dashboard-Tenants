@@ -18,13 +18,14 @@
 <script setup lang="ts">
 import { useAuth } from '~/composables/useAuth'
 import { useApi } from '~/composables/useApi'
-import { useAppState } from '~/composables/useAppState'
+import { useAppState, useExtState } from '~/composables/useAppState'
 
 definePageMeta({ middleware: 'auth' })
 
 const { user, fetchMe, logout: authLogout } = useAuth()
 const { manager } = useApi()
 const { load, pendingNoticeRequests, pendingNoticeDeliveries } = useAppState()
+const { extState } = useExtState()
 
 // عدد طلبات الصيانة من بوابة المستأجرين (portal localStorage)
 const pendingMaintReqCount = ref(0)
@@ -76,6 +77,13 @@ function toggleTheme() {
 const syncTime = ref('—')
 const pendingCount = ref(0)
 let _pollTimer: ReturnType<typeof setInterval> | null = null
+
+// عدد طلبات التسويق الإضافي المعلّقة (من localStorage)
+const pendingMrCount = computed(() =>
+  extState.value.listings
+    .flatMap(l => l.marketingRequests ?? [])
+    .filter(mr => mr.status === 'pending').length
+)
 
 function getNow() {
   return new Date().toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit' })
@@ -135,7 +143,7 @@ const navItems = computed(() => {
       { to: '/supervisor/vacancies',      label: 'الشقق الشاغرة' },
       { to: '/supervisor/listings',       label: 'مهام العقارات الشاغرة' },
       { to: '/supervisor/featured',       label: 'التسويق المميز للعقارات' },
-      { to: '/supervisor/unitreports',    label: 'تقارير الوحدات' },
+      { to: '/supervisor/unitreports',    label: 'تقارير الوحدات',           badge: pendingMrCount.value || null },
       { to: '/supervisor/payments',       label: 'اعتماد السدادات',   badge: pendingCount.value || null },
       { to: '/supervisor/ownerpayments',  label: 'سدادات الملاك' },
       { to: '/supervisor/notices',        label: 'الإشعارات',         badge: noticeBadge },
@@ -154,7 +162,7 @@ const navItems = computed(() => {
     { to: '/supervisor/vacancies',      label: 'الشقق الشاغرة' },
     { to: '/supervisor/listings',       label: 'مهام العقارات الشاغرة' },
     { to: '/supervisor/featured',       label: 'التسويق المميز للعقارات' },
-    { to: '/supervisor/unitreports',    label: 'تقارير الوحدات' },
+    { to: '/supervisor/unitreports',    label: 'تقارير الوحدات',                badge: pendingMrCount.value || null },
     { to: '/supervisor/collectors',     label: 'المستخدمون والصلاحيات' },
     { to: '/supervisor/payments',       label: 'اعتماد السدادات',          badge: pendingCount.value || null },
     { to: '/supervisor/ownerpayments',  label: 'سدادات الملاك' },
