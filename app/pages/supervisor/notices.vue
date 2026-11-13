@@ -26,7 +26,20 @@
     </div>
 
     <div class="card">
-      <div class="table-wrap">
+      <!-- Loading -->
+      <div v-if="loading" style="text-align:center;padding:40px;">
+        <div class="spinner" style="margin:0 auto 12px;width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--orange);border-radius:50%;animation:spin .7s linear infinite;"></div>
+        <div class="muted">جارٍ التحميل...</div>
+      </div>
+      <!-- Error -->
+      <div v-else-if="fetchError" style="text-align:center;padding:40px;">
+        <div style="font-size:28px;margin-bottom:10px;">⚠️</div>
+        <b style="color:var(--danger,#B3452F);">تعذّر جلب البيانات</b>
+        <p class="muted" style="margin-top:6px;font-size:12.5px;">{{ fetchError }}</p>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px;" @click="fetchList">إعادة المحاولة</button>
+      </div>
+      <!-- Table -->
+      <div v-else class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -83,8 +96,8 @@
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
+      </div><!-- end table-wrap -->
+    </div><!-- end card -->
 
     <!-- Issue Modal -->
     <div v-if="issuingId" class="modal-overlay" @mousedown.self="issuingId = null">
@@ -151,6 +164,8 @@ const searchQ  = ref('')
 const requests = ref<NoticeRequest[]>([])
 const stats    = ref<{ new_requests_count?: number; pending_approval_count?: number; all_count?: number }>({})
 const busy     = ref<number | null>(null)
+const loading  = ref(false)
+const fetchError = ref('')
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 function onSearchInput() {
@@ -159,12 +174,19 @@ function onSearchInput() {
 }
 
 async function fetchList() {
+  loading.value = true
+  fetchError.value = ''
   try {
     const data = await manager.noticeRequests({ tab: tab.value, search: searchQ.value || undefined }, apiRole.value)
-    requests.value = data.requests
-    stats.value    = data.statistics
-    console.log(data)
-  } catch { showToast('تعذّر جلب الإشعارات') }
+    requests.value = data.requests ?? []
+    stats.value    = data.statistics ?? {}
+  } catch (e: any) {
+    const msg = e?.data?.message || e?.message || 'تعذّر جلب الإشعارات'
+    fetchError.value = msg
+    showToast(msg)
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(fetchList)
@@ -308,6 +330,7 @@ textarea:focus { border-color:var(--orange); background:var(--surface); }
 .btn-danger  { background:var(--danger-tint); color:var(--danger); }  .btn-danger:hover:not(:disabled)  { background:#f0cdc6; }
 .btn-sm { padding:7px 12px; font-size:12.5px; border-radius:8px; }
 .btn:disabled { opacity:.6; cursor:default; }
+@keyframes spin { to { transform:rotate(360deg); } }
 .modal-overlay { position:fixed; inset:0; background:rgba(46,43,39,.5); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
 .modal { background:var(--surface); border-radius:16px; padding:26px; width:100%; max-width:520px; max-height:88vh; overflow:auto; }
 .modal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }

@@ -58,7 +58,7 @@
         <!-- Details -->
         <div class="kv-grid">
           <div class="kv"><span class="k">رقم الهوية</span><span class="v">{{ r.idNumber || '—' }}</span></div>
-          <div class="kv"><span class="k">تاريخ الميلاد</span><span class="v">{{ r.birthDate ? fmtDate(r.birthDate) : '—' }}</span></div>
+          <div class="kv"><span class="k">تاريخ تأجير الوحدة</span><span class="v">{{ r.birthDate ? fmtDate(r.birthDate) : '—' }}</span></div>
           <div class="kv"><span class="k">رقم الجوال</span><span class="v">{{ r.phone || '—' }}</span></div>
         </div>
 

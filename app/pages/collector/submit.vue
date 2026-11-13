@@ -105,8 +105,22 @@ function onSearchInput() {
 async function fetchTenants() {
   loadingTenants.value = true
   try {
-    const data = await collector.tenants({ period: mk })
-    tenants.value = data.tenants
+    // جلب الصفحة الأولى
+    const first = await collector.tenants({ period: mk, page: 1 })
+    const all = [...first.tenants]
+
+    // جلب باقي الصفحات إن وُجدت
+    const lastPage = first.pagination?.last_page ?? 1
+    if (lastPage > 1) {
+      const rest = await Promise.all(
+        Array.from({ length: lastPage - 1 }, (_, i) =>
+          collector.tenants({ period: mk, page: i + 2 })
+        )
+      )
+      rest.forEach(r => all.push(...r.tenants))
+    }
+
+    tenants.value = all
   } catch { /* تجاهل */ } finally {
     loadingTenants.value = false
   }

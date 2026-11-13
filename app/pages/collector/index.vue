@@ -51,16 +51,15 @@ const { collector } = useApi()
 const { monthKey, monthLabel, fmtMoney, lastNMonths } = useFormat()
 
 const mk = monthKey()
-const myTenants = ref<TenantListItem[]>([])
+const myTenants  = ref<TenantListItem[]>([])
 const myPayments = ref<CollectorPaymentItem[]>([])
+const chartPayments = ref<Record<string, number>>({})
+const chartTargets  = ref<Record<string, number>>({})
 
 const collected = computed(() =>
-  myPayments.value.filter(p => p.status === 'approved' && p.period === mk).reduce((s, p) => s + Number(p.amount), 0)
+  myPayments.value.filter(p => p.status === 'approved').reduce((s, p) => s + Number(p.amount), 0)
 )
-const target = computed(() =>
-  myTenants.value.reduce((s, t) => s + Number(t.monthly_target || 0), 0)
-)
-console.log('Target:', fmtMoney(target.value))
+const target = computed(() => chartTargets.value[mk] ?? 0)
 const pct = computed(() => target.value ? Math.min(100, Math.round(collected.value / target.value * 100)) : 0)
 
 const allTime = computed(() =>
@@ -69,41 +68,136 @@ const allTime = computed(() =>
 
 const chartEl = ref<HTMLCanvasElement | null>(null)
 let chart: Chart | null = null
+
+
+async function fetchAllTenants(period: string) {
+  const all: TenantListItem[] = []
+  let page = 1
+
+  while (true) {
+    const res = await collector.tenants({ period, page })
+
+    all.push(...res.tenants)
+
+    const lastPage = Number(res.pagination?.last_page || page)
+    if (page >= lastPage) break
+
+    page++
+  }
+
+  return all
+}
+
+async function fetchAllPayments(period: string) {
+  const all: CollectorPaymentItem[] = []
+  let page = 1
+
+  while (true) {
+    const res = await collector.payments({
+      period,
+      status: 'approved',
+      page,
+    })
+
+    all.push(...res.payments)
+
+    const lastPage = Number(res.pagination?.last_page || page)
+    if (page >= lastPage) break
+
+    page++
+  }
+
+  return all
+}
+
 async function loadData() {
   try {
-    // جلب أول صفحة
-    const [firstTenants, pData] = await Promise.all([
-      collector.tenants({ period: mk, page: 1 }),
-      collector.payments({ period: mk, status: 'approved' }),
-    ])
+    const months = lastNMonths(6)
 
-    // معرفة عدد الصفحات
-    const lastPage = firstTenants.pagination.last_page
+    const monthResults = await Promise.allSettled(
+      months.map(async (m) => {
+        // جلب المستأجرين والمدفوعات الخاصة بالشهر
+        const [tenants, payments] = await Promise.all([
+          fetchAllTenants(m),
+          fetchAllPayments(m),
+        ])
 
-    // جلب باقي الصفحات
-    const remainingPages = await Promise.all(
-      Array.from({ length: lastPage - 1 }, (_, i) =>
-        collector.tenants({
-          period: mk,
-          page: i + 2,
-        })
-      )
+        // حساب المستهدف التاريخي لكل مستأجر
+        let monthlyTarget = 0
+
+        // تقسيم الطلبات لتجنب إرسال عدد كبير مرة واحدة
+        for (let i = 0; i < tenants.length; i += 10) {
+          const batch = tenants.slice(i, i + 10)
+
+          const details = await Promise.all(
+            batch.map(t => collector.showTenant(t.id, m))
+          )
+
+          monthlyTarget += details.reduce(
+            (sum, detail) =>
+              sum + Number(detail.current_month_target?.target_amount || 0),
+            0
+          )
+        }
+
+        // جمع المدفوعات المعتمدة الخاصة بهذا الشهر فقط
+        const monthlyCollected = payments
+          .filter(p => p.status === 'approved' && p.period === m)
+          .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+
+        return {
+          month: m,
+          tenants,
+          payments,
+          target: monthlyTarget,
+          collected: monthlyCollected,
+        }
+      })
     )
 
-    // تجميع كل المستأجرين
-    myTenants.value = [
-      ...firstTenants.tenants,
-      ...remainingPages.flatMap(page => page.tenants),
+    const pMap: Record<string, number> = {}
+    const tMap: Record<string, number> = {}
+
+    for (let i = 0; i < months.length; i++) {
+      const res = monthResults[i]
+
+      if (res.status === 'fulfilled') {
+        const data = res.value
+
+        pMap[data.month] = data.collected
+        tMap[data.month] = data.target
+
+        console.log('Month:', data.month)
+        console.log('Monthly Target:', data.target)
+        console.log('Monthly Collected:', data.collected)
+      } else {
+        console.error(
+          'Error loading month:',
+          months[i],
+          res.reason
+        )
+
+        pMap[months[i]] = 0
+        tMap[months[i]] = 0
+      }
+    }
+
+    chartTargets.value = tMap
+    chartPayments.value = pMap
+
+    // تحديد بيانات الشهر الحالي
+    const currentIndex = months.indexOf(mk)
+    const currentResult = monthResults[
+      currentIndex >= 0 ? currentIndex : months.length - 1
     ]
 
-    myPayments.value = pData.payments
+    if (currentResult.status === 'fulfilled') {
+      myTenants.value = currentResult.value.tenants
+      myPayments.value = currentResult.value.payments
+    }
 
-    console.log('عدد المستأجرين:', myTenants.value.length)
-    console.log('إجمالي المستهدف:', target.value)
-    console.log('المستهدف بالتنسيق:', fmtMoney(target.value))
-
-  } catch (error) {
-    console.error('Error loading data:', error)
+  } catch (e) {
+    console.error('Error loading data:', e)
   }
 }
 
@@ -115,19 +209,16 @@ onMounted(async () => {
 function drawChart() {
   if (!chartEl.value) return
   const months = lastNMonths(6)
-  // نجلب سدادات كل شهر — لكن نعتمد على البيانات المتاحة (الشهر الحالي)
-  // للأشهر السابقة نحتاج API منفصل، حالياً نعرض الشهر الحالي فقط
-  const monthData = months.map(m =>
-    myPayments.value.filter(p => p.status === 'approved' && p.period === m).reduce((s, p) => s + Number(p.amount), 0)
-  )
-  const monthTarget = months.map(() => target.value)
+  const monthData   = months.map(m => chartPayments.value[m] ?? 0)
+  const monthTarget = months.map(m => chartTargets.value[m] ?? 0)
 
+  if (chart) chart.destroy()
   chart = new Chart(chartEl.value, {
     type: 'bar',
     data: {
       labels: months.map(monthLabel),
       datasets: [
-        { label: 'المحصّل', data: monthData, backgroundColor: '#E1712F', borderRadius: 8, maxBarThickness: 44 },
+        { label: 'المحصّل',   data: monthData,   backgroundColor: '#E1712F', borderRadius: 8, maxBarThickness: 44 },
         { label: 'المستهدف', data: monthTarget, backgroundColor: '#3A3733', borderRadius: 8, maxBarThickness: 44 },
       ],
     },
