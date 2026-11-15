@@ -64,12 +64,31 @@ const monthKey = () =>
 async function fetchDashboardData() {
   try {
     await collector.tenants({ period: monthKey() })
-    alertsCount.value = 0
   } catch { /* silent */ }
-  load()
-  noticesToDeliver.value = state.value.notices.filter(
-    n => n.collectorId === String(user.value?.id || '') && n.status === 'issued'
-  ).length
+
+  // جلب عدد التنبيهات (مواعيد فائتة + قريبة)
+  try {
+    const data = await collector.alerts()
+    alertsCount.value = data.counts?.total ?? data.alerts?.length ?? 0
+  } catch { alertsCount.value = 0 }
+
+  // جلب عدد الإشعارات المعلقة من الـ API
+  try {
+    const data = await collector.noticeRequests({})
+    const list: any[] = Array.isArray(data)
+      ? data
+      : Array.isArray((data as any)?.requests)
+        ? (data as any).requests
+        : []
+    // استخدم statistics.total_count لو موجود، وإلا عدّ يدوياً
+    const stats = (data as any)?.statistics
+    noticesToDeliver.value = stats?.total_count
+      ?? list.filter(
+        (n: any) => n.status === 'approved' || n.status === 'issued' || n.status === 'pending'
+      ).length
+  } catch {
+    noticesToDeliver.value = 0
+  }
 }
 
 async function refresh() {

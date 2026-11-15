@@ -34,10 +34,10 @@
 
       <!-- stats chips -->
       <div v-if="myStats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-        <span class="badge badge-pending">بانتظار الإصدار: {{ myStats.pending_issuance_count ?? 0 }}</span>
-        <span class="badge badge-neutral">صادر للتسليم: {{ myStats.issued_count ?? 0 }}</span>
-        <span class="badge badge-pending">بانتظار اعتماد التسليم: {{ myStats.pending_approval_count ?? 0 }}</span>
-        <span class="badge badge-approved">معتمد: {{ myStats.approved_count ?? 0 }}</span>
+        <span class="badge badge-pending">الكل: {{ myStats.total_count ?? 0 }}</span>
+        <span class="badge badge-pending">بانتظار الإصدار: {{ myStats.pending_count ?? 0 }}</span>
+        <span class="badge badge-neutral">صادر للتسليم: {{ myStats.approved_count ?? 0 }}</span>
+        <span class="badge badge-approved">مكتمل: {{ myStats.completed_count ?? 0 }}</span>
       </div>
 
       <div class="table-wrap">
@@ -60,24 +60,40 @@
                   <span class="badge" :class="statusClass(n.status)">{{ statusLabel(n.status) }}</span>
                 </td>
                 <td style="max-width:260px;font-size:12.5px;">
-                  <span v-if="n.status === 'pending_issuance'" class="muted">بانتظار قيام المشرف بإصدار نص الإشعار</span>
-                  <span v-else-if="n.status === 'issued'"><b>نص الإشعار:</b> {{ n.notice_content || '—' }}</span>
-                  <div v-if="n.notice_file_url && n.status === 'issued'" style="margin-top:4px;">
-                    <a :href="n.notice_file_url" target="_blank" class="dl-link">تنزيل وثيقة الإشعار ↗</a>
-                  </div>
-                  <span v-if="n.status === 'pending_approval'" class="muted">تم رفع إثبات التسليم — بانتظار اعتماد المشرف</span>
-                  <span v-if="n.status === 'approved'" class="muted">تم اعتماد التسليم</span>
-                  <span v-if="n.status === 'rejected' && n.reason" class="muted">سبب الرفض: {{ n.reason }}</span>
+                  <!-- pending: waiting for supervisor to issue -->
+                  <span v-if="n.status === 'pending'" class="muted">بانتظار قيام المشرف بإصدار نص الإشعار</span>
+                  <!-- issued / approved: show notice content only -->
+                  <template v-else-if="isIssued(n)">
+                    <span v-if="n.notice_content" style="display:block;margin-bottom:4px;"><b>نص الإشعار:</b> {{ n.notice_content }}</span>
+                    <div v-if="n.notice_file_url" style="margin-top:4px;">
+                      <a :href="n.notice_file_url" target="_blank" class="dl-link">تنزيل وثيقة الإشعار ↗</a>
+                    </div>
+                  </template>
+                  <!-- pending_approval: waiting supervisor to confirm delivery -->
+                  <span v-else-if="isPendingApproval(n)" class="muted">تم رفع إثبات التسليم — بانتظار اعتماد المشرف</span>
+                  <!-- completed -->
+                  <span v-else-if="n.status === 'completed'" class="muted">تم اعتماد التسليم</span>
+                  <!-- rejected -->
+                  <span v-else-if="n.status === 'rejected'" class="muted">{{ n.reason ? 'سبب الرفض: ' + n.reason : 'تم رفض الطلب' }}</span>
                 </td>
                 <td>
-                  <button
-                    v-if="n.status === 'issued'"
-                    class="btn btn-dark btn-sm"
-                    :disabled="busy === n.id"
-                    @click="openDeliver(n)"
-                  >
-                    رفع إثبات التسليم
-                  </button>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button
+                      v-if="isIssued(n)"
+                      class="btn btn-dark btn-sm"
+                      :disabled="busy === n.id"
+                      @click="openDeliver(n)"
+                    >
+                      رفع إثبات التسليم
+                    </button>
+                    <button
+                      v-if="isIssued(n)"
+                      class="btn btn-outline-print btn-sm"
+                      @click="openPrintModal(n)"
+                    >
+                      🖨 طباعة الإشعار
+                    </button>
+                  </div>
                 </td>
               </tr>
             </template>
@@ -88,6 +104,44 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Print Type Modal -->
+    <div v-if="printingNotice" class="modal-overlay" @mousedown.self="printingNotice = null">
+      <div class="modal modal-sm">
+        <div class="modal-head">
+          <h3>اختر نوع الإشعار للطباعة</h3>
+          <button class="modal-close" @click="printingNotice = null">×</button>
+        </div>
+        <p class="hint" style="margin-bottom:20px;">
+          المستأجر: <b>{{ printingNotice.tenant?.name }}</b>
+        </p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <button
+            class="btn btn-print-type"
+            @click="doPrint('payment')"
+          >
+            <span class="print-icon">💰</span>
+            <div>
+              <div class="print-type-title">إشعار سداد</div>
+              <div class="print-type-sub">مطالبة المستأجر بسداد المبالغ المتأخرة</div>
+            </div>
+          </button>
+          <button
+            class="btn btn-print-type btn-print-danger"
+            @click="doPrint('evacuation')"
+          >
+            <span class="print-icon">🏠</span>
+            <div>
+              <div class="print-type-title">إشعار إخلاء</div>
+              <div class="print-type-sub">إشعار رسمي بضرورة إخلاء الوحدة</div>
+            </div>
+          </button>
+        </div>
+        <div style="margin-top:16px;text-align:left;">
+          <button class="btn btn-ghost btn-sm" @click="printingNotice = null">إلغاء</button>
+        </div>
       </div>
     </div>
 
@@ -144,11 +198,19 @@ const loadingTenants = ref(false)
 async function fetchTenants() {
   loadingTenants.value = true
   try {
-    const data = await collector.tenants({
-      period: monthKey()
-    })
-
-    tenants.value = data.tenants
+    const mk = monthKey()
+    const first = await collector.tenants({ period: mk, page: 1 })
+    const all = [...first.tenants]
+    const lastPage = first.pagination?.last_page ?? 1
+    if (lastPage > 1) {
+      const rest = await Promise.all(
+        Array.from({ length: lastPage - 1 }, (_, i) =>
+          collector.tenants({ period: mk, page: i + 2 })
+        )
+      )
+      rest.forEach(r => all.push(...r.tenants))
+    }
+    tenants.value = all
   } finally {
     loadingTenants.value = false
   }
@@ -160,10 +222,26 @@ const myStats    = ref<any>(null)
 
 async function fetchMyRequests() {
   try {
-    const data = await collector.noticeRequests()
-    myRequests.value = data.requests
-    myStats.value    = data.statistics
-  } catch { showToast('تعذّر جلب طلبات الإشعارات') }
+    const data = await collector.noticeRequests({})
+    console.log('[notices] raw data:', JSON.stringify(data))
+
+    // الـ API ممكن يرجع البيانات بأشكال مختلفة — نتعامل مع كل الحالات
+    if (Array.isArray(data)) {
+      // رجع array مباشرة
+      myRequests.value = data
+    } else if (data && Array.isArray((data as any).requests)) {
+      myRequests.value = (data as any).requests
+      myStats.value    = (data as any).statistics ?? null
+    } else if (data && Array.isArray((data as any).data)) {
+      myRequests.value = (data as any).data
+    } else {
+      console.warn('[notices] unexpected shape:', data)
+      myRequests.value = []
+    }
+  } catch (e: any) {
+    console.error('[notices] error:', e)
+    showToast(e?.data?.message ?? 'تعذّر جلب طلبات الإشعارات')
+  }
 }
 
 onMounted(async () => {
@@ -194,24 +272,100 @@ async function sendRequest() {
 // ===== Status helpers =====
 function statusLabel(s: string) {
   return ({
+    // API statuses
+    pending:          'بانتظار الإصدار',
+    approved:         'صادر — بانتظار التسليم',
+    completed:        'تم التسليم',
+    rejected:         'مرفوض',
+    // legacy / alternate names
     pending_issuance: 'بانتظار الإصدار',
     issued:           'صادر — بانتظار التسليم',
     pending_approval: 'بانتظار اعتماد التسليم',
-    approved:         'معتمد',
-    rejected:         'مرفوض',
   } as Record<string, string>)[s] ?? s
 }
 function statusClass(s: string) {
   return ({
+    pending:          'badge-pending',
+    approved:         'badge-neutral',
+    completed:        'badge-approved',
+    rejected:         'badge-rejected',
     pending_issuance: 'badge-pending',
     issued:           'badge-neutral',
     pending_approval: 'badge-pending',
-    approved:         'badge-approved',
-    rejected:         'badge-rejected',
   } as Record<string, string>)[s] ?? 'badge-neutral'
 }
 
-// ===== Deliver proof =====
+// helper: is the notice issued and ready to deliver?
+function isIssued(n: NoticeRequest) {
+  return n.status === 'issued' || n.status === 'approved'
+}
+// helper: has delivery proof been submitted (waiting for supervisor)?
+function isPendingApproval(n: NoticeRequest) {
+  return n.status === 'pending_approval'
+}
+
+// ===== Print Modal =====
+const printingNotice = ref<NoticeRequest | null>(null)
+
+function openPrintModal(n: NoticeRequest) {
+  printingNotice.value = n
+}
+
+function doPrint(type: 'payment' | 'evacuation') {
+  if (!printingNotice.value) return
+  const n = printingNotice.value
+
+  const tenant  = encodeURIComponent(n.tenant?.name         ?? '')
+  const unit    = encodeURIComponent(n.tenant?.property_unit ?? '')
+  const content = encodeURIComponent(n.notice_content        ?? '')
+
+  if (type === 'payment') {
+    // المبلغ: من amount_due أو استخراجه من notice_content
+    const amountRaw   = n.amount_due
+      ?? n.notice_content?.match(/[\d,،]+(?:\.\d+)?/)?.[0]?.replace(/,/g, '')
+      ?? ''
+    const amount = encodeURIComponent(String(amountRaw))
+    const url = `/collector/print/payment?tenant=${tenant}&unit=${unit}&amount=${amount}&content=${content}`
+    window.open(url, '_blank')
+  } else {
+    // تاريخ انتهاء العقد: من contract_end_date أو استخراجه من notice_content
+    const endDateRaw  = n.contract_end_date
+      ?? n.notice_content?.match(/\d{4}-\d{2}-\d{2}/)?.[0]
+      ?? ''
+    const contractEnd = encodeURIComponent(endDateRaw)
+    const url = `/collector/print/evacuation?tenant=${tenant}&unit=${unit}&contractEnd=${contractEnd}&content=${content}`
+    window.open(url, '_blank')
+  }
+
+  printingNotice.value = null
+}
+
+// ===== Print PDF (old inline button — kept for backward compat) =====
+async function printNotice(id: number) {
+  try {
+    const config = useRuntimeConfig()
+    const base   = config.public.apiBase
+    const token  = useCookie('tahsilat-token')
+    // فتح صفحة الطباعة HTML مباشرة
+    const url = `${base}/collector/notice-requests/${id}/pdf?format=html&print=1`
+    const win = window.open('', '_blank')
+    if (!win) { showToast('السماح بالنوافذ المنبثقة لاستخدام الطباعة'); return }
+    // جلب HTML مع التوكن
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'ngrok-skip-browser-warning': 'true',
+      }
+    })
+    const html = await res.text()
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print() }, 600)
+  } catch {
+    showToast('تعذّر طباعة الإشعار')
+  }
+}
 const deliveringNotice = ref<NoticeRequest | null>(null)
 const deliverFile      = ref<File | null>(null)
 const deliverDate      = ref(todayISO())
@@ -297,4 +451,14 @@ tr:last-child td { border-bottom:none; }
 .modal-head h3 { margin:0; font-size:17px; font-weight:800; }
 .modal-close { background:var(--bg); border:none; width:30px; height:30px; border-radius:50%; font-size:16px; color:var(--muted); cursor:pointer; }
 .modal-actions { display:flex; gap:10px; margin-top:18px; justify-content:flex-end; }
+.modal-sm { max-width:400px; }
+.btn-outline-print { background:transparent; color:var(--charcoal); border:1.5px solid var(--line); }
+.btn-outline-print:hover:not(:disabled) { border-color:var(--orange); color:var(--orange-dark); }
+.btn-print-type { background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:14px; text-align:right; width:100%; cursor:pointer; transition:.15s; }
+.btn-print-type:hover:not(:disabled) { border-color:var(--orange); background:var(--orange-tint); }
+.btn-print-danger { }
+.btn-print-danger:hover:not(:disabled) { border-color:var(--danger); background:var(--danger-tint); }
+.print-icon { font-size:28px; flex-shrink:0; }
+.print-type-title { font-size:15px; font-weight:800; color:var(--charcoal); margin-bottom:3px; }
+.print-type-sub { font-size:12px; color:var(--muted); font-weight:500; }
 </style>

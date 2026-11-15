@@ -122,23 +122,12 @@ async function loadData() {
           fetchAllPayments(m),
         ])
 
-        // حساب المستهدف التاريخي لكل مستأجر
-        let monthlyTarget = 0
-
-        // تقسيم الطلبات لتجنب إرسال عدد كبير مرة واحدة
-        for (let i = 0; i < tenants.length; i += 10) {
-          const batch = tenants.slice(i, i + 10)
-
-          const details = await Promise.all(
-            batch.map(t => collector.showTenant(t.id, m))
-          )
-
-          monthlyTarget += details.reduce(
-            (sum, detail) =>
-              sum + Number(detail.current_month_target?.target_amount || 0),
-            0
-          )
-        }
+        // المستهدف = مجموع monthly_target لكل المستأجرين في هذا الشهر
+        // monthly_target بيرجع من API مباشرةً في قائمة المستأجرين
+        const monthlyTarget = tenants.reduce(
+          (sum, t) => sum + Number(t.monthly_target || 0),
+          0
+        )
 
         // جمع المدفوعات المعتمدة الخاصة بهذا الشهر فقط
         const monthlyCollected = payments

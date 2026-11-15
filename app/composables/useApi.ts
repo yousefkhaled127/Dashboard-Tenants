@@ -284,6 +284,8 @@ export interface NoticeRequest {
   notice_file_url?: string | null
   delivery_proof_url?: string | null
   created_at?: string
+  contract_end_date?: string | null
+  amount_due?: number | string | null
 }
 
 export interface NoticeStatistics {
@@ -385,6 +387,28 @@ export interface OwnerPropertiesData {
   properties: OwnerPropertySummary[]
   tenants: OwnerPropertyTenant[]
   statistics: OwnerPropertiesStats
+}
+
+// ==================== ALERT TYPES ====================
+export interface AlertItem {
+  id: number
+  alert_status: 'due' | 'soon'
+  alert_status_label: string
+  diff_days: number
+  tenant: {
+    id: number
+    name: string
+    tenant_number: string
+    property_unit: string
+    phone: string
+  }
+  promise: {
+    id: number
+    date: string
+    date_formatted: string
+    note: string
+    status: string
+  }
 }
 
 // ==================== PAGINATION ====================
@@ -681,6 +705,13 @@ export function useApi() {
       req<NoticeRequest>('/collector/notice-requests', { method: 'POST', body }),
     submitDeliveryProof: (id: number, formData: FormData) =>
       req<NoticeRequest>(`/collector/notice-requests/${id}/delivery-proof`, { method: 'POST', body: formData }),
+
+    // Alerts — مواعيد السداد الفائتة والقريبة
+    alerts: () =>
+      req<{
+        alerts: AlertItem[]
+        counts: { total: number; due_count: number; soon_count: number }
+      }>('/collector/alerts'),
   }
 
   // ---------- OWNER ----------

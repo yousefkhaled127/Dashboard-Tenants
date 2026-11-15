@@ -24,7 +24,7 @@ definePageMeta({ middleware: 'auth' })
 
 const { user, fetchMe, logout: authLogout } = useAuth()
 const { manager } = useApi()
-const { load, pendingNoticeRequests, pendingNoticeDeliveries } = useAppState()
+const { load } = useAppState()
 const { extState } = useExtState()
 
 // عدد طلبات الصيانة من بوابة المستأجرين (portal localStorage)
@@ -75,7 +75,8 @@ function toggleTheme() {
 
 // ── sync / badges ──
 const syncTime = ref('—')
-const pendingCount = ref(0)
+const pendingCount  = ref(0)
+const noticeBadge   = ref(0)   // إجمالي طلبات الإشعارات من الـ API
 let _pollTimer: ReturnType<typeof setInterval> | null = null
 
 // عدد طلبات التسويق الإضافي المعلّقة (من localStorage)
@@ -94,6 +95,19 @@ async function fetchDashboardData() {
     const data = await manager.approvals({ tab: 'pending' })
     pendingCount.value = data.tabs.pending_count
   } catch { /* silent */ }
+
+  // جلب عدد طلبات الإشعارات من الـ API
+  try {
+    const role = (['maintenance_supervisor'].includes(user.value?.type ?? '')
+      ? 'maintenance-supervisor'
+      : 'general-manager') as 'general-manager' | 'maintenance-supervisor'
+    const data = await manager.noticeRequests({}, role)
+    const stats = (data as any)?.statistics
+    const list: any[] = Array.isArray((data as any)?.requests) ? (data as any).requests : []
+    noticeBadge.value = stats?.new_requests_count
+      ?? list.filter((n: any) => n.status === 'pending' || n.status === 'pending_approval').length
+  } catch { noticeBadge.value = 0 }
+
   load()
   loadPortalBadge()
 }
@@ -120,7 +134,7 @@ provide('pendingCount',     pendingCount)
 // ── nav ──
 const navItems = computed(() => {
   const type = user.value?.type ?? ''
-  const noticeBadge = (pendingNoticeRequests.value.length + pendingNoticeDeliveries.value.length) || null
+  const nb   = noticeBadge.value || null
 
   // مشرف الصيانة — قائمة مخصوصة
   if (type === 'maintenance_supervisor') {
@@ -129,7 +143,7 @@ const navItems = computed(() => {
       { to: '/supervisor/featured',       label: 'التسويق المميز للعقارات' },
       { to: '/supervisor/maintenance',    label: 'أعمال الصيانة' },
       { to: '/supervisor/tenantrequests', label: 'طلبات صيانة المستأجرين', badge: pendingMaintReqCount.value || null },
-      { to: '/supervisor/notices',        label: 'الإشعارات', badge: noticeBadge },
+      { to: '/supervisor/notices',        label: 'الإشعارات', badge: nb },
       { to: '/supervisor/smslog',         label: 'رسائلي (SMS)' },
       { to: '/supervisor/settings',       label: 'كلمة المرور والبيانات' },
     ]
@@ -146,7 +160,7 @@ const navItems = computed(() => {
       { to: '/supervisor/unitreports',    label: 'تقارير الوحدات',           badge: pendingMrCount.value || null },
       { to: '/supervisor/payments',       label: 'اعتماد السدادات',   badge: pendingCount.value || null },
       { to: '/supervisor/ownerpayments',  label: 'سدادات الملاك' },
-      { to: '/supervisor/notices',        label: 'الإشعارات',         badge: noticeBadge },
+      { to: '/supervisor/notices',        label: 'الإشعارات',         badge: nb },
       { to: '/supervisor/properties',     label: 'إدارة الأملاك والعقود' },
       { to: '/supervisor/reports',        label: 'التقارير الشهرية' },
       { to: '/supervisor/smslog',         label: 'سجل رسائل SMS' },
@@ -166,7 +180,7 @@ const navItems = computed(() => {
     { to: '/supervisor/collectors',     label: 'المستخدمون والصلاحيات' },
     { to: '/supervisor/payments',       label: 'اعتماد السدادات',          badge: pendingCount.value || null },
     { to: '/supervisor/ownerpayments',  label: 'سدادات الملاك' },
-    { to: '/supervisor/notices',        label: 'الإشعارات',                badge: noticeBadge },
+    { to: '/supervisor/notices',        label: 'الإشعارات',                badge: nb },
     { to: '/supervisor/properties',     label: 'إدارة الأملاك والعقود' },
     { to: '/supervisor/maintenance',    label: 'أعمال الصيانة' },
     { to: '/supervisor/tenantrequests', label: 'طلبات صيانة المستأجرين',   badge: pendingMaintReqCount.value || null },
