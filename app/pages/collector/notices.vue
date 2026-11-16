@@ -64,7 +64,13 @@
                   <span v-if="n.status === 'pending'" class="muted">بانتظار قيام المشرف بإصدار نص الإشعار</span>
                   <!-- issued / approved: show notice content only -->
                   <template v-else-if="isIssued(n)">
-                    <span v-if="n.notice_content" style="display:block;margin-bottom:4px;"><b>نص الإشعار:</b> {{ n.notice_content }}</span>
+                    <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;">
+                      <span style="flex:1;">
+                        <b>نص الإشعار:</b>
+                        {{ getLocalContent(n) || n.notice_content || '—' }}
+                      </span>
+                      <button class="btn-edit-inline" title="تعديل النص" @click="openEditContent(n)">✏️</button>
+                    </div>
                     <div v-if="n.notice_file_url" style="margin-top:4px;">
                       <a :href="n.notice_file_url" target="_blank" class="dl-link">تنزيل وثيقة الإشعار ↗</a>
                     </div>
@@ -179,6 +185,27 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Content Modal -->
+    <div v-if="editingNotice" class="modal-overlay" @mousedown.self="editingNotice = null">
+      <div class="modal modal-sm">
+        <div class="modal-head">
+          <h3>تعديل نص الإشعار</h3>
+          <button class="modal-close" @click="editingNotice = null">×</button>
+        </div>
+        <p class="hint" style="margin-bottom:14px;">
+          المستأجر: <b>{{ editingNotice.tenant?.name }}</b>
+        </p>
+        <div class="field">
+          <label>نص الإشعار</label>
+          <textarea v-model="editContentText" rows="6" placeholder="اكتب نص الإشعار هنا..." />
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" @click="editingNotice = null">إلغاء</button>
+          <button class="btn btn-primary" @click="saveEditContent">حفظ</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -267,6 +294,19 @@ async function sendRequest() {
   } finally {
     submitting.value = false
   }
+}
+
+// ===== النص المحفوظ محلياً (من صفحة الطباعة) =====
+function getLocalContent(n: NoticeRequest): string {
+  if (!import.meta.client) return ''
+  const normalize = (s: string) => s.trim().replace(/\s+/g, ' ')
+  const tenant = normalize(n.tenant?.name         ?? '')
+  const unit   = normalize(n.tenant?.property_unit ?? '')
+  const payKey = `notice-content-payment::${tenant}::${unit}`
+  const evaKey = `notice-content-evacuation::${tenant}::${unit}`
+  try {
+    return localStorage.getItem(payKey) || localStorage.getItem(evaKey) || ''
+  } catch { return '' }
 }
 
 // ===== Status helpers =====
@@ -405,6 +445,30 @@ async function confirmDeliver() {
     busy.value = null
   }
 }
+
+// ===== تعديل نص الإشعار محلياً =====
+const editingNotice   = ref<NoticeRequest | null>(null)
+const editContentText = ref('')
+
+function openEditContent(n: NoticeRequest) {
+  editingNotice.value   = n
+  editContentText.value = getLocalContent(n) || n.notice_content || ''
+}
+
+function saveEditContent() {
+  if (!editingNotice.value) return
+  const normalize = (s: string) => s.trim().replace(/\s+/g, ' ')
+  const tenant = normalize(editingNotice.value.tenant?.name         ?? '')
+  const unit   = normalize(editingNotice.value.tenant?.property_unit ?? '')
+  const text   = editContentText.value.trim()
+  try {
+    localStorage.setItem(`notice-content-payment::${tenant}::${unit}`,    text)
+    localStorage.setItem(`notice-content-evacuation::${tenant}::${unit}`, text)
+  } catch {}
+  showToast('تم حفظ نص الإشعار')
+  editingNotice.value = null
+  myRequests.value = [...myRequests.value]
+}
 </script>
 
 <style scoped>
@@ -454,6 +518,8 @@ tr:last-child td { border-bottom:none; }
 .modal-sm { max-width:400px; }
 .btn-outline-print { background:transparent; color:var(--charcoal); border:1.5px solid var(--line); }
 .btn-outline-print:hover:not(:disabled) { border-color:var(--orange); color:var(--orange-dark); }
+.btn-edit-inline { background:none; border:none; cursor:pointer; font-size:14px; padding:2px 5px; border-radius:6px; line-height:1; flex-shrink:0; transition:.15s; opacity:.7; }
+.btn-edit-inline:hover { opacity:1; background:var(--orange-tint); }
 .btn-print-type { background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:14px; text-align:right; width:100%; cursor:pointer; transition:.15s; }
 .btn-print-type:hover:not(:disabled) { border-color:var(--orange); background:var(--orange-tint); }
 .btn-print-danger { }
@@ -462,3 +528,4 @@ tr:last-child td { border-bottom:none; }
 .print-type-title { font-size:15px; font-weight:800; color:var(--charcoal); margin-bottom:3px; }
 .print-type-sub { font-size:12px; color:var(--muted); font-weight:500; }
 </style>
+

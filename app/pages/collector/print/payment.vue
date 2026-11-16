@@ -10,6 +10,13 @@
       </svg>
       طباعة / حفظ PDF
     </button>
+    <button class="tb-btn tb-edit" @click="editMode = true">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+      تعديل النص
+    </button>
     <button class="tb-btn tb-img" :disabled="savingImg" @click="saveImage">
       <svg v-if="!savingImg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -18,6 +25,21 @@
       </svg>
       <span>{{ savingImg ? 'جارٍ الحفظ...' : 'حفظ كصورة PNG' }}</span>
     </button>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div v-if="editMode" class="edit-overlay no-print" @mousedown.self="editMode = false">
+    <div class="edit-modal">
+      <div class="edit-head">
+        <h3>تعديل نص الإشعار</h3>
+        <button class="edit-close" @click="editMode = false">×</button>
+      </div>
+      <textarea v-model="editedContent" class="edit-textarea" rows="8" placeholder="اكتب نص الإشعار هنا..." />
+      <div class="edit-actions">
+        <button class="tb-btn tb-ghost" @click="editMode = false">إلغاء</button>
+        <button class="tb-btn tb-pdf" @click="applyEdit">حفظ التعديل</button>
+      </div>
+    </div>
   </div>
 
   <!-- DOCUMENT -->
@@ -101,6 +123,11 @@
           <li>المطالبة بالإخلاء الفوري للعقار وتحميلكم كافة الرسوم والتكاليف القانونية والقضائية الناتجة عن التأخير.</li>
         </ul>
 
+        <!-- نص الإشعار الإضافي -->
+        <div v-if="displayContent" class="notice-content-box">
+          <p class="para" style="white-space:pre-wrap;">{{ displayContent }}</p>
+        </div>
+
       </div>
 
       <!-- ══ FOOTER ══ -->
@@ -155,8 +182,48 @@ const today = computed(() => {
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} م`
 })
 
+// ── نص الإشعار القابل للتعديل ──
+const displayContent = ref('')
+const editMode       = ref(false)
+const editedContent  = ref('')
+
+// تطبيع المفتاح
+function normalizeKey(s: string) { return s.trim().replace(/\s+/g, ' ') }
+
+const keyPayment = computed(() =>
+  `notice-content-payment::${normalizeKey(tenantName.value)}::${normalizeKey(propertyUnit.value)}`
+)
+const keyEvacuation = computed(() =>
+  `notice-content-evacuation::${normalizeKey(tenantName.value)}::${normalizeKey(propertyUnit.value)}`
+)
+
+function readSaved(): string {
+  try {
+    return localStorage.getItem(keyPayment.value)
+        ?? localStorage.getItem(keyEvacuation.value)
+        ?? ''
+  } catch { return '' }
+}
+
+watch(editMode, (val) => {
+  if (val) editedContent.value = displayContent.value
+})
+
+function applyEdit() {
+  displayContent.value = editedContent.value
+  // حفظ في المفتاحين
+  try {
+    localStorage.setItem(keyPayment.value,    editedContent.value)
+    localStorage.setItem(keyEvacuation.value, editedContent.value)
+  } catch {}
+  editMode.value = false
+}
+
 // إخفاء الـ sidebar
 onMounted(() => {
+  const saved = readSaved()
+  displayContent.value = saved !== '' ? saved : noticeContent.value
+
   const s = document.querySelector('.sidebar')      as HTMLElement | null
   const t = document.querySelector('.mobile-topbar') as HTMLElement | null
   const sh = document.querySelector('.shell')       as HTMLElement | null
@@ -442,8 +509,55 @@ body {
 .tb-btn:disabled { opacity: .6; cursor: default; }
 .tb-pdf  { background: #c05050; color: #fff; }
 .tb-pdf:hover:not(:disabled)  { background: #a03838; }
+.tb-edit { background: #e1712f; color: #fff; }
+.tb-edit:hover:not(:disabled) { background: #c05a1f; }
 .tb-img  { background: #fff; color: #3a3733; border: 2px solid #c8a98a; }
 .tb-img:hover:not(:disabled)  { background: #f5ede3; }
+.tb-ghost { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.3); }
+.tb-ghost:hover:not(:disabled) { border-color: #fff; }
+
+/* ── NOTICE CONTENT BOX ── */
+.notice-content-box {
+  margin-top: 10px;
+  padding: 14px 18px;
+  background: #fdf8f3;
+  border-right: 4px solid #e1712f;
+  border-radius: 4px;
+}
+
+/* ── EDIT MODAL ── */
+.edit-overlay {
+  position: fixed; inset: 0;
+  background: rgba(30,26,22,.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px;
+}
+.edit-modal {
+  background: #fff; border-radius: 16px; padding: 28px;
+  width: 100%; max-width: 540px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.22);
+}
+.edit-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 18px;
+}
+.edit-head h3 { margin: 0; font-size: 16px; font-weight: 900; color: #3a3733; }
+.edit-close {
+  background: #f3efe8; border: none; width: 32px; height: 32px;
+  border-radius: 50%; font-size: 18px; color: #8a8479;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.edit-close:hover { background: #e8e0d4; color: #3a3733; }
+.edit-textarea {
+  width: 100%; padding: 12px 14px; border: 1.5px solid #e6dfd3;
+  border-radius: 10px; font-family: 'Tajawal', sans-serif; font-size: 14px;
+  line-height: 1.8; resize: vertical; outline: none; color: #1a1a1a;
+  background: #fafaf8; direction: rtl;
+}
+.edit-textarea:focus { border-color: #e1712f; background: #fff; }
+.edit-actions {
+  display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px;
+}
 
 /* ── PRINT ── */
 @media print {
