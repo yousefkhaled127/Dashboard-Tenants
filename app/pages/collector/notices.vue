@@ -360,12 +360,17 @@ function doPrint(type: 'payment' | 'evacuation') {
   const content = encodeURIComponent(n.notice_content        ?? '')
 
   if (type === 'payment') {
-    // المبلغ: من amount_due أو استخراجه من notice_content
-    const amountRaw   = n.amount_due
+    // المبلغ المتأخر (المستهدف)
+    const amountRaw = n.amount_due
       ?? n.notice_content?.match(/[\d,،]+(?:\.\d+)?/)?.[0]?.replace(/,/g, '')
       ?? ''
     const amount = encodeURIComponent(String(amountRaw))
-    const url = `/collector/print/payment?tenant=${tenant}&unit=${unit}&amount=${amount}&content=${content}`
+
+    // الفرق: من بيانات المستأجر لو متاحة
+    const target    = encodeURIComponent(String(n.tenant?.monthly_target     ?? ''))
+    const collected = encodeURIComponent(String(n.tenant?.paid_amount        ?? ''))
+
+    const url = `/collector/print/payment?tenant=${tenant}&unit=${unit}&amount=${amount}&content=${content}&target=${target}&collected=${collected}`
     window.open(url, '_blank')
   } else {
     // تاريخ انتهاء العقد: من contract_end_date أو استخراجه من notice_content

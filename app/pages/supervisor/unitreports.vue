@@ -8,16 +8,16 @@
       <!-- Header -->
       <div class="page-title">
         <div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-ghost btn-sm" @click="closeDetail">→ رجوع للقائمة</button>
-            <button class="btn btn-ghost btn-sm" @click="openTaskModal(detailListing)">فتح مهمة الوحدة</button>
-            <button class="btn btn-primary btn-sm" @click="openReadingModal">+ إضافة قراءة جديدة</button>
-            <button class="btn btn-ghost btn-sm" @click="printDetail">↓ PDF</button>
-            <button class="btn btn-ghost btn-sm" @click="exportPng">↓ صورة PNG</button>
-            <button class="btn btn-ghost btn-sm" @click="exportExcel">↓ Excel</button>
-          </div>
           <h2 style="margin:10px 0 2px;">{{ detailListing.title || '—' }}</h2>
           <p>ملف الوحدة وتقاريرها التسويقية</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" @click="closeDetail">→ رجوع للقائمة</button>
+          <button class="btn btn-ghost btn-sm" @click="openTaskModal(detailListing)">فتح مهمة الوحدة</button>
+          <button class="btn btn-dark btn-sm" @click="openReadingModal">+ إضافة قراءة جديدة</button>
+          <button class="btn btn-ghost btn-sm" @click="printDetail">↓ PDF</button>
+          <button class="btn btn-ghost btn-sm" @click="exportPng">🖼 صورة PNG</button>
+          <button class="btn btn-ghost btn-sm" @click="exportExcel">↓ Excel</button>
         </div>
       </div>
 
@@ -119,7 +119,7 @@
       </div>
 
       <!-- التقرير التسويقي - بوستر مظلم -->
-      <div class="report-poster" style="margin-bottom:16px;" ref="posterRef">
+      <div class="report-poster" ref="posterRef">
         <!-- رأس البوستر -->
         <div class="poster-head">
           <div class="poster-logo">
@@ -135,11 +135,15 @@
               <div style="font-size:10px;color:#E1712F;letter-spacing:.5px;">SAUD ALI ALSAQAMI REAL ESTATE EST.</div>
             </div>
           </div>
-          <div class="poster-title-wrap">
+          <div class="poster-title-block">
             <div class="poster-unit-name">تقرير {{ detailListing.title }}</div>
-            <div class="poster-sub">تقرير تسويقي وتشغيلي للوحدة</div>
-            <div class="poster-insight-btn">📊 ملخص الأداء الحالي والتوصيات التسويقية</div>
+            <div class="poster-unit-sub">تقرير تسويقي وتشغيلي للوحدة</div>
+            <div class="poster-insight-pill">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V7M17 16v-8"/></svg>
+              ملخص الأداء الحالي والتوصيات التسويقية
+            </div>
           </div>
+          <div class="poster-slogan">من أرض الفرص<br>نبني مستقبلك</div>
         </div>
 
         <!-- تنبيه لا قراءات -->
@@ -147,60 +151,111 @@
           لا توجد قراءات مسجلة بعد – الأرقام أدناه أصفار مؤقتة
         </div>
 
-        <!-- مؤشرات الأداء الرئيسية -->
-        <div class="poster-section-title">📊 مؤشرات الأداء الرئيسية</div>
-        <div class="kpis-grid">
-          <div class="kpi-card" v-for="kpi in kpiCards" :key="kpi.key">
-            <div class="kpi-icon">{{ kpi.icon }}</div>
+        <!-- قسم مؤشرات الأداء -->
+        <div class="poster-section-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V7M17 16v-8"/></svg>
+          مؤشرات الأداء الرئيسية
+        </div>
+
+        <!-- صف 1: 6 بطاقات -->
+        <div class="kpi-row-6">
+          <div class="kpi-card" v-for="kpi in kpiRow1" :key="kpi.key">
+            <div class="kpi-ic" v-html="kpi.svg"></div>
             <div class="kpi-label">{{ kpi.label }}</div>
             <div class="kpi-val">{{ kpi.val }}</div>
           </div>
         </div>
 
-        <!-- قنوات الاستفسار + قراءة سريعة -->
+        <!-- صف 2: 5 بطاقات -->
+        <div class="kpi-row-5">
+          <div class="kpi-card" v-for="kpi in kpiRow2" :key="kpi.key">
+            <div class="kpi-ic" v-html="kpi.svg"></div>
+            <div class="kpi-label">{{ kpi.label }}</div>
+            <div class="kpi-val">{{ kpi.val }}</div>
+          </div>
+        </div>
+
+        <!-- صف 3: تاريخ التنزيل + المشاهدات -->
+        <div class="kpi-row-2">
+          <div class="kpi-card kpi-wide">
+            <div class="kpi-wide-inner">
+              <div class="kpi-ic">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              </div>
+              <div>
+                <div class="kpi-label" style="text-align:right;">تاريخ التنزيل</div>
+                <div class="kpi-val">{{ lastReading ? lastReading.date : '—' }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="kpi-card kpi-wide">
+            <div class="kpi-wide-inner">
+              <div class="kpi-ic">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <div>
+                <div class="kpi-label" style="text-align:right;">عدد المشاهدات بجميع المنصات</div>
+                <div class="kpi-val">{{ lastReading?.views ?? 0 }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- صفان: قنوات الاستفسار + قراءة سريعة -->
         <div class="poster-two-col">
           <!-- قنوات الاستفسار -->
           <div class="poster-box">
-            <div class="poster-box-title">📈 قنوات الاستفسار</div>
-            <div class="channels-row">
-              <div v-for="ch in channels" :key="ch.key" class="ch-item">
-                <div class="ch-val">{{ ch.val }}</div>
-                <div class="ch-icon">{{ ch.icon }}</div>
-                <div class="ch-label">{{ ch.label }}</div>
+            <div class="poster-box-title">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V7M17 16v-8"/></svg>
+              قنوات الاستفسار
+            </div>
+            <!-- رسم بياني مبسط -->
+            <div class="ch-bars">
+              <div class="ch-bar-col" v-for="ch in channels" :key="ch.key">
+                <div class="ch-num">{{ ch.val }}</div>
+                <div class="ch-bar-wrap">
+                  <div class="ch-bar-fill" :style="{ height: chBarHeight(ch.val) }"></div>
+                </div>
+                <div class="ch-ic" v-html="ch.svg"></div>
+                <div class="ch-lbl">{{ ch.label }}</div>
               </div>
             </div>
           </div>
           <!-- قراءة سريعة -->
           <div class="poster-box">
-            <div class="poster-box-title">🔍 قراءة سريعة</div>
-            <div v-if="detailReadings.length" class="insight-text">
-              {{ quickInsight }}
+            <div class="poster-box-title">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
+              قراءة سريعة
             </div>
-            <div v-else class="insight-text muted" style="color:#aaa;">
+            <div v-if="detailReadings.length" class="insight-text">{{ quickInsight }}</div>
+            <div v-else class="insight-text" style="color:#888;">
               لم تُسجّل أي قراءة تسويقية لهذه الوحدة بعد.<br>سيظهر هنا ملخص الأداء فور إدخال أول قراءة.
             </div>
           </div>
         </div>
 
         <!-- الخطوات العملية -->
-        <div class="poster-section-title" style="margin-top:20px;">✨ الخطوات اللازمة لزيادة المخرجات التسويقية للوحدة</div>
+        <div class="poster-section-title" style="margin-top:20px;">
+          ✨ الخطوات اللازمة لزيادة المخرجات التسويقية للوحدة
+        </div>
         <div class="steps-grid">
-          <div v-for="(step, i) in actionSteps" :key="i" class="step-card">
+          <div class="step-card" v-for="(step, i) in actionSteps" :key="i">
             <div class="step-num">{{ i + 1 }}</div>
+            <div class="step-ic" v-html="stepIcons[i]"></div>
             <div class="step-text">{{ step }}</div>
           </div>
         </div>
 
         <!-- التوصية العامة -->
-        <div class="poster-recommendation">
-          <span class="rec-label">التوصية العامة</span>
-          <span class="rec-text">{{ generalRecommendation }}</span>
+        <div class="poster-reco">
+          <span class="reco-label">التوصية العامة</span>
+          <span class="reco-text">{{ generalRecommendation }}</span>
         </div>
 
-        <!-- تاريخ -->
+        <!-- Footer -->
         <div class="poster-footer">
-          <span>مقا نحو فرص أكبر</span>
-          <span>صادر بتاريخ {{ fmtDate(todayISO()) }}</span>
+          <span>معًا نحو فرص أكبر</span>
+          <span class="pf-center">صادر بتاريخ {{ fmtDate(todayISO()) }}</span>
           <span>استثمار اليوم.. لقاء أفضل غداً</span>
         </div>
       </div>
@@ -213,19 +268,84 @@
             <table>
               <thead>
                 <tr>
-                  <th>التاريخ</th>
-                  <th>مشاهدات</th>
-                  <th>واتساب</th>
-                  <th>عقار</th>
-                  <th>بيوت</th>
-                  <th>حراج</th>
-                  <th>اتصالات واردة</th>
-                  <th>متابعة صادرة</th>
-                  <th>مهتمون</th>
-                  <th>زيارات مجدولة</th>
-                  <th>زيارات تامة</th>
-                  <th>عربون</th>
-                  <th>منفّذ</th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      <span>التاريخ</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <span>مشاهدات</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l1.9-5.4A8.4 8.4 0 1 1 21 11.5z"/><path d="M9 9.5c.3 2.2 2.3 4.2 4.5 4.5l1.3-1.2-2-1-.7.7c-.8-.4-1.5-1.1-1.9-1.9l.7-.7-1-2z"/></svg>
+                      <span>واتساب</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M8 6h2M14 6h2M8 10h2M14 10h2"/></svg>
+                      <span>عقار</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-6h6v6"/></svg>
+                      <span>بيوت</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>
+                      <span>حراج</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>
+                      <span>اتصالات واردة</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>
+                      <span>متابعة صادرة</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>
+                      <span>مهتمون</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h2M14 14h2M8 18h2M14 18h2"/></svg>
+                      <span>زيارات مجدولة</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
+                      <span>زيارات تامة</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v.01M18 14v.01"/></svg>
+                      <span>عربون</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.5 13.5 17 22l-5-3-5 3 1.5-8.5"/></svg>
+                      <span>منفّذ</span>
+                    </div>
+                  </th>
                   <th>ملاحظة</th>
                   <th></th>
                 </tr>
@@ -384,11 +504,36 @@
                   <th>الوحدة</th>
                   <th>المالك</th>
                   <th>العمارة</th>
-                  <th>المشاهدات</th>
-                  <th>الاستفسارات</th>
-                  <th>زيارات تامة</th>
-                  <th>الروابط</th>
-                  <th>آخر قراءة</th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <span>المشاهدات</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l1.9-5.4A8.4 8.4 0 1 1 21 11.5z"/></svg>
+                      <span>الاستفسارات</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
+                      <span>زيارات تامة</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
+                      <span>الروابط</span>
+                    </div>
+                  </th>
+                  <th>
+                    <div class="ur-th">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      <span>آخر قراءة</span>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -864,36 +1009,78 @@ const lastReading = computed<Reading | null>(() => {
   return [...rs].sort((a, b) => b.date.localeCompare(a.date))[0]
 })
 
-// KPI cards
-const kpiCards = computed(() => {
+// SVGs للـ KPI cards (بأيقونات متطابقة مع الـ HTML الأصلي)
+const KPI_SVGS: Record<string, string> = {
+  wa:          `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l1.9-5.4A8.4 8.4 0 1 1 21 11.5z"/><path d="M9 9.5c.3 2.2 2.3 4.2 4.5 4.5l1.3-1.2-2-1-.7.7c-.8-.4-1.5-1.1-1.9-1.9l.7-.7-1-2z"/></svg>`,
+  bayut:       `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-6h6v6"/></svg>`,
+  haraj:       `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>`,
+  aqar:        `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M8 6h2M14 6h2M8 10h2M14 10h2M8 14h2M14 14h2"/></svg>`,
+  callsIn:     `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>`,
+  callsOut:    `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>`,
+  followup:    `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>`,
+  visitsPlanned:`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h2M14 14h2M8 18h2M14 18h2"/></svg>`,
+  visitsDone:  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>`,
+  deposits:    `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v.01M18 14v.01"/></svg>`,
+  executed:    `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.5 13.5 17 22l-5-3-5 3 1.5-8.5"/></svg>`,
+  views:       `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`,
+}
+
+// KPI rows مقسمة زي الـ HTML الأصلي
+const kpiRow1 = computed(() => {
   const r = lastReading.value
   return [
-    { key: 'callsIn',      icon: '📞', label: 'عدد الاتصالات الواردة',                val: r?.callsIn ?? 0 },
-    { key: 'callsOut',     icon: '📲', label: 'عدد الاتصالات المرسلة - عملاء تعاد متابعتهم', val: r?.callsOut ?? 0 },
-    { key: 'haraj',        icon: '🏘️', label: 'عدد محادثات حراج',                     val: r?.haraj ?? 0 },
-    { key: 'aqar',         icon: '🏠', label: 'عدد محادثات عقار',                     val: r?.aqar ?? 0 },
-    { key: 'bayut',        icon: '🏢', label: 'عدد محادثات بيوت',                     val: r?.bayut ?? 0 },
-    { key: 'wa',           icon: '💬', label: 'عدد رسائل الواتساب الواردة',            val: r?.wa ?? 0 },
-    { key: 'followup',     icon: '👥', label: 'عدد العملاء المهتمين في مرحلة المتابعة - مهتمين', val: r?.followup ?? 0 },
-    { key: 'visitsPlanned',icon: '📅', label: 'عدد الزيارات المنسقة',                  val: r?.visitsPlanned ?? 0 },
-    { key: 'visitsDone',   icon: '✅', label: 'عدد الزيارات التامة',                   val: r?.visitsDone ?? 0 },
-    { key: 'deposits',     icon: '💰', label: 'عدد العملاء المعربنين',                 val: r?.deposits ?? 0 },
-    { key: 'executed',     icon: '🔑', label: 'عدد العملاء المنفّذين',                 val: r?.executed ?? 0 },
-    { key: 'views',        icon: '👁️', label: 'عدد المشاهدات بجميع المنصات',           val: r?.views ?? 0 },
+    { key: 'callsOut',  svg: KPI_SVGS.callsOut,  label: 'عدد الاتصالات المرسلة - عملاء تعاد متابعتهم', val: r?.callsOut ?? 0 },
+    { key: 'callsIn',   svg: KPI_SVGS.callsIn,   label: 'عدد الاتصالات الواردة', val: r?.callsIn ?? 0 },
+    { key: 'haraj',     svg: KPI_SVGS.haraj,     label: 'عدد محادثات حراج', val: r?.haraj ?? 0 },
+    { key: 'aqar',      svg: KPI_SVGS.aqar,      label: 'عدد محادثات عقار', val: r?.aqar ?? 0 },
+    { key: 'bayut',     svg: KPI_SVGS.bayut,     label: 'عدد محادثات بيوت', val: r?.bayut ?? 0 },
+    { key: 'wa',        svg: KPI_SVGS.wa,        label: 'عدد رسائل الواتساب الواردة', val: r?.wa ?? 0 },
   ]
 })
 
-// قنوات الاستفسار
+const kpiRow2 = computed(() => {
+  const r = lastReading.value
+  return [
+    { key: 'followup',      svg: KPI_SVGS.followup,      label: 'عدد العملاء في مرحلة المتابعة - مهتمين', val: r?.followup ?? 0 },
+    { key: 'visitsPlanned', svg: KPI_SVGS.visitsPlanned, label: 'عدد الزيارات المنسقة', val: r?.visitsPlanned ?? 0 },
+    { key: 'visitsDone',    svg: KPI_SVGS.visitsDone,    label: 'عدد الزيارات التامة', val: r?.visitsDone ?? 0 },
+    { key: 'deposits',      svg: KPI_SVGS.deposits,      label: 'عدد العملاء المعربنين', val: r?.deposits ?? 0 },
+    { key: 'executed',      svg: KPI_SVGS.executed,      label: 'عدد العملاء المنفّذين', val: r?.executed ?? 0 },
+  ]
+})
+
+// قنوات مع SVG
 const channels = computed(() => {
   const r = lastReading.value
   return [
-    { key: 'wa',      icon: '💬', label: 'الواتساب', val: r?.wa ?? 0 },
-    { key: 'haraj',   icon: '🏘️', label: 'حراج',    val: r?.haraj ?? 0 },
-    { key: 'bayut',   icon: '🏢', label: 'بيوت',    val: r?.bayut ?? 0 },
-    { key: 'aqar',    icon: '🏠', label: 'عقار',    val: r?.aqar ?? 0 },
-    { key: 'callsIn', icon: '📞', label: 'اتصالات الواردة', val: r?.callsIn ?? 0 },
+    { key: 'wa',      svg: KPI_SVGS.wa,      label: 'الواتساب', val: r?.wa ?? 0 },
+    { key: 'haraj',   svg: KPI_SVGS.haraj,   label: 'حراج',    val: r?.haraj ?? 0 },
+    { key: 'bayut',   svg: KPI_SVGS.bayut,   label: 'بيوت',    val: r?.bayut ?? 0 },
+    { key: 'aqar',    svg: KPI_SVGS.aqar,    label: 'عقار',    val: r?.aqar ?? 0 },
+    { key: 'callsIn', svg: KPI_SVGS.callsIn, label: 'اتصالات الواردة', val: r?.callsIn ?? 0 },
   ]
 })
+
+// حساب ارتفاع الأعمدة كنسبة مئوية
+function chBarHeight(val: number): string {
+  const maxVal = Math.max(1, ...channels.value.map(c => c.val))
+  const pct = Math.max(5, Math.round((val / maxVal) * 100))
+  return `${pct}%`
+}
+
+// step icons
+const stepIcons: string[] = [
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17 9 11l4 4 8-8"/><path d="M15 7h6v6"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 2 3 6.5 7 .9-5.2 4.8 1.4 7L12 17.8 5.8 21.2l1.4-7L2 9.4l7-.9z"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a1 1 0 0 0 1 1h3l8 5V5L7 10H4a1 1 0 0 0-1 1z"/><path d="M19 9a4 4 0 0 1 0 6"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/></svg>`,
+]
+
+// KPI cards (للتوافق مع الكود القديم — مش بنستخدمه في الـ template الجديد)
+const kpiCards = computed(() => [...kpiRow1.value, ...kpiRow2.value])
 
 // قراءة سريعة
 const quickInsight = computed(() => {
@@ -1101,6 +1288,21 @@ function exportExcel() {
 .page-title h2 { margin:0; font-size:21px; font-weight:800; color:var(--charcoal,#3A3733); }
 .page-title p  { margin:4px 0 0; color:var(--muted,#8A8479); font-size:12.5px; max-width:560px; line-height:1.6; }
 
+/* ── Table Header Icons ── */
+.ur-th {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted, #8A8479);
+  line-height: 1.3;
+  white-space: normal;
+  min-width: 56px;
+}
+.ur-th svg { color: var(--orange, #E1712F); display: block; }
+
 /* ── Grid ── */
 .grid      { display:grid; gap:14px; }
 .grid-4    { grid-template-columns: repeat(4,1fr); }
@@ -1158,7 +1360,7 @@ tr.clickable:hover { background:var(--bg,#F3EFE8); cursor:pointer; }
 @media(max-width:900px){ .unit-profile-grid{ grid-template-columns:repeat(2,1fr); } }
 @media(max-width:500px){ .unit-profile-grid{ grid-template-columns:1fr; } }
 
-.kv-item { display:flex; flex-direction:column; gap:3px; padding:8px 0; border-bottom:1px solid var(--line,#E6DFD3); }
+.kv-item { display:flex; justify-content: space-between; gap:3px; padding:8px 0; border-bottom:1px solid var(--line,#E6DFD3); }
 .kv-k { font-size:11.5px; color:var(--muted,#8A8479); font-weight:700; }
 .kv-v { font-size:13px; color:var(--charcoal,#3A3733); font-weight:600; }
 
@@ -1175,105 +1377,216 @@ tr.clickable:hover { background:var(--bg,#F3EFE8); cursor:pointer; }
 
 /* ── Report poster ── */
 .report-poster {
-  background:#2B2520; border-radius:16px; padding:28px; color:#fff;
-  font-family:inherit;
+  background: linear-gradient(170deg, #0f4a3d 0%, #0a2f27 55%, #07211b 100%);
+  border-radius: 18px; padding: 24px; color: #fff; font-family: inherit;
+  margin-bottom: 16px; position: relative; overflow: hidden;
 }
 
+/* header */
 .poster-head {
-  display:flex; justify-content:space-between; align-items:flex-start;
-  margin-bottom:20px; flex-wrap:wrap; gap:12px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+  padding-bottom: 18px;
 }
-.poster-logo { display:flex; align-items:center; gap:10px; }
-.poster-title-wrap { text-align:left; }
-.poster-unit-name { font-size:20px; font-weight:900; color:#fff; }
-.poster-sub { font-size:12px; color:#aaa; margin-top:2px; }
-.poster-insight-btn {
-  display:inline-block; margin-top:8px; padding:6px 14px;
-  background:rgba(255,255,255,.1); border-radius:20px; font-size:12px; color:#E1712F;
-  border:1px solid rgba(225,113,47,.4);
+.poster-logo { display: flex; align-items: center; gap: 10px; }
+.poster-logo-texts { display: flex; flex-direction: column; gap: 2px; }
+.poster-logo-ar  { font-weight: 800; font-size: 13px; color: #fff; }
+.poster-logo-en  { font-size: 9px; color: #E1712F; letter-spacing: .5px; text-transform: uppercase; }
+.poster-title-block { flex: 1; text-align: center; padding: 0 10px; }
+.poster-unit-name { font-size: 24px; font-weight: 900; color: #fff; line-height: 1.2; }
+.poster-unit-sub  { font-size: 13px; color: #F4B27D; margin-top: 3px; font-weight: 700; }
+.poster-insight-pill {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+  border: 1.5px solid #E1712F; border-radius: 30px; padding: 5px 16px;
+  font-size: 12px; font-weight: 700; color: #fff;
 }
+.poster-insight-pill svg { color: #E1712F; }
+.poster-slogan { font-size: 13px; font-weight: 700; color: #F4B27D; line-height: 1.7; min-width: 110px; text-align: left; }
 
 .poster-no-data {
-  text-align:center; padding:10px 20px; background:rgba(255,255,255,.07);
-  border-radius:10px; color:#aaa; font-size:13px; margin-bottom:16px;
+  text-align: center; padding: 10px 20px; background: rgba(255,255,255,.07);
+  border-radius: 10px; color: #aaa; font-size: 12.5px; margin-bottom: 14px;
+  border: 1px dashed rgba(225,113,47,.4);
 }
 
+/* section title */
 .poster-section-title {
-  font-size:14px; font-weight:800; color:#E1712F; margin-bottom:12px;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 14px; font-weight: 900; color: #E1712F;
+  margin-bottom: 12px;
 }
 
-/* KPIs grid */
-.kpis-grid {
-  display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:20px;
-}
-@media(max-width:900px){ .kpis-grid{ grid-template-columns:repeat(3,1fr); } }
-@media(max-width:500px){ .kpis-grid{ grid-template-columns:repeat(2,1fr); } }
-
+/* KPI cards shared */
 .kpi-card {
-  background:rgba(255,255,255,.07); border-radius:12px; padding:12px 10px;
-  text-align:center; border:1px solid rgba(255,255,255,.1);
+  background: #f7f5ef; border-radius: 12px; padding: 12px 8px 10px;
+  text-align: center; display: flex; flex-direction: column;
+  align-items: center; gap: 5px;
+  border-bottom: 3px solid #E1712F;
+  position: relative;
 }
-.kpi-icon  { font-size:20px; margin-bottom:4px; }
-.kpi-label { font-size:10px; color:#aaa; line-height:1.3; min-height:28px; }
-.kpi-val   { font-size:22px; font-weight:900; color:#fff; margin-top:4px; }
+.kpi-ic {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #0f4a3d; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.kpi-ic svg { display: block; }
+.kpi-label {
+  font-size: 10.5px; font-weight: 800; color: #26332f;
+  line-height: 1.3; min-height: 28px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.kpi-val { font-size: 24px; font-weight: 900; color: #E1712F; line-height: 1; }
+
+/* صف 6 بطاقات */
+.kpi-row-6 {
+  display: grid; grid-template-columns: repeat(6,1fr); gap: 9px; margin-bottom: 9px;
+}
+@media(max-width:900px){ .kpi-row-6 { grid-template-columns: repeat(3,1fr); } }
+@media(max-width:500px){ .kpi-row-6 { grid-template-columns: repeat(2,1fr); } }
+
+/* صف 5 بطاقات */
+.kpi-row-5 {
+  display: grid; grid-template-columns: repeat(5,1fr); gap: 9px; margin-bottom: 9px;
+}
+@media(max-width:900px){ .kpi-row-5 { grid-template-columns: repeat(3,1fr); } }
+@media(max-width:500px){ .kpi-row-5 { grid-template-columns: repeat(2,1fr); } }
+
+/* صف 2 (تاريخ + مشاهدات) */
+.kpi-row-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 14px;
+}
+
+.kpi-wide { flex-direction: row !important; padding: 14px 16px; gap: 14px; }
+.kpi-wide-inner { display: flex; align-items: center; gap: 14px; width: 100%; }
+.kpi-wide .kpi-ic { width: 44px; height: 44px; }
+.kpi-wide .kpi-label { justify-content: flex-start; text-align: right; min-height: 0; font-size: 13px; }
+.kpi-wide .kpi-val  { font-size: 28px; }
 
 /* two col */
 .poster-two-col {
-  display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;
+  display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; margin-bottom: 16px;
 }
-@media(max-width:700px){ .poster-two-col{ grid-template-columns:1fr; } }
+@media(max-width:700px){ .poster-two-col { grid-template-columns: 1fr; } }
 
 .poster-box {
-  background:rgba(255,255,255,.07); border-radius:12px; padding:16px;
-  border:1px solid rgba(255,255,255,.1);
+  background: #f7f5ef; border-radius: 12px; padding: 14px;
 }
-.poster-box-title { font-size:13px; font-weight:800; color:#E1712F; margin-bottom:12px; }
+.poster-box-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 900; color: #0f4a3d; margin-bottom: 12px;
+}
+.poster-box-title svg { color: #E1712F; }
 
-/* channels */
-.channels-row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
-.ch-item { text-align:center; min-width:50px; }
-.ch-val   { font-size:20px; font-weight:900; color:#fff; }
-.ch-icon  { font-size:16px; }
-.ch-label { font-size:10px; color:#aaa; margin-top:2px; }
+/* رسم بياني قنوات */
+.ch-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 8px;
+  height: 130px;
+  border-bottom: 1.5px solid #d6d2c6;
+  padding: 0 4px;
+  overflow: hidden;
+}
+.ch-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+  max-width: 60px;
+  gap: 0;
+}
+.ch-num {
+  font-size: 14px;
+  font-weight: 900;
+  color: #1c2b27;
+  margin-bottom: 3px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ch-bar-wrap {
+  width: 60%;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  min-height: 0;
+  max-height: 80px;
+}
+.ch-bar-fill {
+  width: 100%;
+  min-height: 4px;
+  background: linear-gradient(180deg, #F58A4B, #E1712F);
+  border-radius: 4px 4px 0 0;
+  transition: height .3s;
+}
+.ch-ic {
+  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ch-ic svg { color: #0f4a3d; }
+.ch-lbl {
+  font-size: 10px;
+  font-weight: 800;
+  color: #26332f;
+  margin-top: 4px;
+  text-align: center;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
 
 /* insight */
-.insight-text { font-size:13px; color:#ccc; line-height:1.7; }
+.insight-text {
+  background: linear-gradient(180deg, #fdeee2, #fff); border-radius: 10px;
+  padding: 12px 14px; font-size: 13px; line-height: 1.9; font-weight: 600;
+  color: #26332f; border: 1px solid #f1d3bc;
+}
 
 /* steps */
 .steps-grid {
-  display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:20px;
+  display: grid; grid-template-columns: repeat(7,1fr); gap: 8px; margin-bottom: 14px;
 }
-@media(max-width:1000px){ .steps-grid{ grid-template-columns:repeat(3,1fr); } }
-@media(max-width:500px){ .steps-grid{ grid-template-columns:1fr; } }
+@media(max-width:1000px){ .steps-grid { grid-template-columns: repeat(4,1fr); gap: 14px 8px; } }
+@media(max-width:600px){ .steps-grid { grid-template-columns: repeat(2,1fr); } }
 
 .step-card {
-  background:rgba(255,255,255,.07); border-radius:12px; padding:12px 10px;
-  text-align:center; border:1px solid rgba(255,255,255,.1); position:relative;
+  background: #fff; border-radius: 12px; padding: 10px 7px 12px;
+  text-align: center; border-bottom: 3px solid #E1712F; position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
 .step-num {
-  position:absolute; top:-10px; right:50%; transform:translateX(50%);
-  background:#E1712F; color:#fff; width:22px; height:22px; border-radius:50%;
-  font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center;
+  position: absolute; top: -10px; right: 50%; transform: translateX(50%);
+  background: #E1712F; color: #fff; width: 22px; height: 22px; border-radius: 50%;
+  font-weight: 900; font-size: 12px; display: flex; align-items: center; justify-content: center;
 }
-.step-text { font-size:11px; color:#ccc; line-height:1.5; margin-top:8px; }
+.step-ic { margin-top: 10px; }
+.step-ic svg { color: #0f4a3d; display: block; }
+.step-text { font-size: 10.5px; font-weight: 700; color: #26332f; line-height: 1.6; }
 
 /* recommendation */
-.poster-recommendation {
-  background:rgba(225,113,47,.15); border:1px solid rgba(225,113,47,.4);
-  border-radius:12px; padding:14px 18px; display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap;
+.poster-reco {
+  background: #fff; border-radius: 12px; border: 1.5px solid #E1712F;
+  padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 10px;
 }
-.rec-label {
-  background:#E1712F; color:#fff; font-size:12px; font-weight:800;
-  padding:3px 10px; border-radius:20px; white-space:nowrap; flex-shrink:0;
+.reco-label {
+  display: inline-block; background: #E1712F; color: #fff; font-size: 13px;
+  font-weight: 900; padding: 3px 18px; border-radius: 20px; white-space: nowrap;
 }
-.rec-text { color:#fff; font-size:13px; line-height:1.6; }
+.reco-text { color: #26332f; font-size: 13px; font-weight: 600; line-height: 1.8; flex: 1; }
 
 /* footer */
 .poster-footer {
-  display:flex; justify-content:space-between; margin-top:16px;
-  padding-top:12px; border-top:1px solid rgba(255,255,255,.1);
-  font-size:11.5px; color:#888; flex-wrap:wrap; gap:6px;
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 12px; border-top: 1px solid rgba(244,178,125,.3);
+  font-size: 12px; font-weight: 800; color: #F4B27D;
+  flex-wrap: wrap; gap: 6px;
 }
+.pf-center { color: #e8efe9; font-size: 11px; font-weight: 600; text-align: center; }
 
 /* ── Misc ── */
 .ls-code { background:var(--bg,#F3EFE8); color:var(--charcoal,#3A3733); font-size:11px; font-weight:800; padding:2px 8px; border-radius:6px; white-space:nowrap; }

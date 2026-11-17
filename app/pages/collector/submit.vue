@@ -80,7 +80,7 @@ const submitting = ref(false)
 const loadingTenants = ref(false)
 const tenants = ref<TenantListItem[]>([])
 
-const form = reactive({ tenantId: '' as number | '', amount: 0, month: mk, type: 'cash', receiptNumber: '' })
+const form = reactive({ tenantId: '' as number | '', amount: "", month: mk, type: 'cash', receiptNumber: '' })
 
 const filteredTenants = computed(() => {
   const q = searchQ.value.trim().toLowerCase()

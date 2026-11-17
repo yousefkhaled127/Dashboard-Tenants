@@ -275,7 +275,16 @@ export interface TabsCounts {
 // ==================== NOTICE TYPES ====================
 export interface NoticeRequest {
   id: number
-  tenant: { id: number; name: string; phone: string; tenant_number: string; property_unit: string }
+  tenant: {
+    id: number
+    name: string
+    phone: string
+    tenant_number: string
+    property_unit: string
+    monthly_target?: number
+    paid_amount?: number
+    remaining_amount?: number
+  }
   collector: CollectorRef
   reason: string
   status: string

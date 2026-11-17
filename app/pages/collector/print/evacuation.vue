@@ -78,9 +78,9 @@
           <!-- <div class="tri tr-pink-tl"></div> -->
         </div>
       </div>
+      <div class="date-row">تاريخ: {{ today }}</div>
 
       <div class="hdr-line"></div>
-      <div class="date-row">تاريخ: {{ today }}</div>
 
       <!-- ══ TITLE ══ -->
       <div class="title-wrap">
@@ -116,11 +116,7 @@
           <div class="contact-label">للتواصل والاستفسار</div>
           <div class="contact-phones">0502140142 - 0534712230</div>
         </div>
-
-      </div>
-
-      <!-- ══ FOOTER ══ -->
-      <div class="ftr">
+    <div class="ftr">
         <div class="ftr-sig">
           <div class="ftr-company">مؤسسة سعود علي السقامي للعقارات</div>
           <div class="ftr-dept">إدارة التحصيل والعقود</div>
@@ -142,6 +138,10 @@
           <span>Address: الرياض / البنية / شارع آل مرشد / المملكة العربية السعودية</span>
         </div>
       </div>
+      </div>
+
+      <!-- ══ FOOTER ══ -->
+  
 
     </div>
   </div>
@@ -298,16 +298,22 @@ body {
 }
 
 .logo-center {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 22px 0 14px;
-  gap: 5px;
+      flex: 1;
+    display: flex;
+    padding: 22px 0 14px;
+    gap: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    width: 300px;
+    opacity: 0.5;
 }
-.logo-svg { width: 82px; height: 82px; }
+.logo-center svg {
+  width: 180px !important;
+}
+.logo-svg { width: 180px; height: 82px; }
 .logo-name-ar { font-size: 11.5px; font-weight: 700; color: #5a4535; }
-.logo-name-en { font-size: 9px; font-weight: 700; color: #c05050; letter-spacing: 0.6px; text-transform: uppercase; }
+.logo-name-en {transform: translateX(-10px); font-size: 9px; font-weight: 700; color: #c05050; letter-spacing: 0.6px; text-transform: uppercase; }
 
 /* ── TRIANGLES ── */
 .tri-corner { display: flex; flex-direction: column; }
@@ -317,15 +323,15 @@ body {
 .tri-top-left { align-items: flex-start; }
 .tr-gray-tl { width:0; height:0; border-right:72px solid transparent; border-top:72px solid #9a9a9a; }
 .tr-pink-tl { width:0; height:0; border-right:52px solid transparent; border-top:52px solid #d97070; margin-top:-14px; }
-.tri-bot-left { position:absolute; bottom:0; left:0; align-items:flex-end; }
+.tri-bot-left { position:absolute; bottom:-205px; left:-44px; align-items:flex-end; }
 .tr-pink-bl { width:0; height:0; border-right:80px solid transparent; border-bottom:80px solid #d97070; }
 .tr-gray-bl { width:0; height:0; border-right:58px solid transparent; border-bottom:58px solid #9a9a9a; margin-left:-16px; }
 
 /* ── DIVIDER ── */
-.hdr-line { height:2px; background:linear-gradient(to left,#d97070,#c8a98a 50%,#9a9a9a); margin:0 32px; }
+.hdr-line { height:2px; background:#e1712f; margin:0 32px; }
 
 /* ── DATE ── */
-.date-row { text-align:left; direction:ltr; padding:12px 32px 0; font-size:12.5px; font-weight:700; color:#222; }
+.date-row { text-align:right; margin-bottom: 10px; direction:ltr; padding:12px 32px 0; font-size:12.5px; font-weight:700; color:#222; }
 
 /* ── TITLE ── */
 .title-wrap { display:flex; justify-content:center; margin:26px 44px 22px; }

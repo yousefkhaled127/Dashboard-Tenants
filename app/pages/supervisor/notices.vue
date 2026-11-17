@@ -115,13 +115,13 @@
           <label>نص الإشعار <span class="req">*</span></label>
           <textarea v-model="issueText" placeholder="اكتب نص الإشعار الذي سيُسلَّم للمستأجر..." />
         </div>
-        <div class="field">
+        <!-- <div class="field">
           <label>وثيقة الإشعار الرسمية (صورة أو PDF — اختياري)</label>
           <div class="filepick" :class="{ has: !!issueFile }" @click="($refs.issueFileInp as HTMLInputElement).click()">
             {{ issueFile ? `تم اختيار: ${issueFile.name} ✓` : 'اضغط لرفع وثيقة الإشعار' }}
           </div>
           <input ref="issueFileInp" type="file" accept="image/*,application/pdf,.pdf" style="display:none;" @change="handleIssueFile" />
-        </div>
+        </div> -->
         <div class="modal-actions">
           <button class="btn btn-ghost" @click="issuingId = null">إلغاء</button>
           <button class="btn btn-success" :disabled="busy" @click="confirmIssue">إصدار وإرسال للمحصل</button>

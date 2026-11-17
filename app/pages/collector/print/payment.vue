@@ -84,10 +84,10 @@
       </div>
 
       <!-- divider line -->
+             <div class="date-row">{{ today }}</div>
       <div class="hdr-line"></div>
 
       <!-- date -->
-      <div class="date-row">{{ today }}</div>
 
       <!-- ══ TITLE ══ -->
       <div class="title-wrap">
@@ -106,7 +106,7 @@
 
         <p class="para">
           نفيدكم علمًا بأنه بالرجوع إلى السجلات المالية الخاصة بعقد الإيجار المبرم معكم، تبين عدم سدادكم للدفعة المستحقة
-          والمبلغ الإجمالي قدره: <span class="amount">{{ amount }} ريال.</span>
+          والمبلغ الإجمالي قدره: <span class="amount">{{ amount }}<template v-if="diff !== null"> (الفرق: <span :style="diffStyle">{{ diffText }}</span>)</template> ريال.</span>
         </p>
 
         <p class="para">
@@ -127,9 +127,6 @@
         <div v-if="displayContent" class="notice-content-box">
           <p class="para" style="white-space:pre-wrap;">{{ displayContent }}</p>
         </div>
-
-      </div>
-
       <!-- ══ FOOTER ══ -->
       <div class="ftr">
         <div class="ftr-sig">
@@ -156,6 +153,9 @@
         </div>
       </div>
 
+      </div>
+
+
     </div><!-- /page -->
   </div><!-- /doc-wrap -->
 </template>
@@ -166,16 +166,38 @@ definePageMeta({ layout: false })
 const route   = useRoute()
 const pageRef = ref<HTMLElement | null>(null)
 
-const tenantName    = computed(() => decodeURIComponent(String(route.query.tenant  ?? '')))
-const propertyUnit  = computed(() => decodeURIComponent(String(route.query.unit    ?? '')))
-const rawAmount     = computed(() => decodeURIComponent(String(route.query.amount  ?? '')))
-const noticeContent = computed(() => decodeURIComponent(String(route.query.content ?? '')))
+const tenantName    = computed(() => decodeURIComponent(String(route.query.tenant     ?? '')))
+const propertyUnit  = computed(() => decodeURIComponent(String(route.query.unit       ?? '')))
+const rawAmount     = computed(() => decodeURIComponent(String(route.query.amount     ?? '')))
+const rawCollected  = computed(() => decodeURIComponent(String(route.query.collected  ?? '')))
+const rawTarget     = computed(() => decodeURIComponent(String(route.query.target     ?? '')))
+const noticeContent = computed(() => decodeURIComponent(String(route.query.content    ?? '')))
 
 const amount = computed(() => {
   if (rawAmount.value && rawAmount.value !== '0') return rawAmount.value
   const m = noticeContent.value.match(/[\d,،]+(?:\.\d+)?/)
   return m ? m[0].replace(/,/g, '') : '—'
 })
+
+// الفرق بين المحصل والمستهدف
+const diff = computed<number | null>(() => {
+  const col = Number(rawCollected.value)
+  const tgt = Number(rawTarget.value)
+  if (!rawCollected.value || !rawTarget.value || isNaN(col) || isNaN(tgt)) return null
+  return col - tgt
+})
+
+const diffText = computed(() => {
+  if (diff.value === null) return ''
+  const n = diff.value
+  const abs = Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })
+  return n >= 0 ? `+${abs}` : `-${abs}`
+})
+
+const diffStyle = computed(() => ({
+  color: diff.value !== null && diff.value >= 0 ? '#3F7D52' : '#c05050',
+  fontWeight: '900',
+}))
 
 const today = computed(() => {
   const d = new Date()
@@ -312,14 +334,20 @@ body {
 
 /* logo center */
 .logo-center {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 22px 0 14px;
-  gap: 5px;
+      flex: 1;
+    display: flex;
+    padding: 22px 0 14px;
+    gap: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    width: 300px;
+    opacity: 0.5;
 }
-.logo-svg { width: 82px; height: 82px; }
+.logo-center svg {
+  width: 180px !important;
+}
+.logo-svg { width: 180px; height: 82px; }
 .logo-name-ar {
   font-size: 11.5px;
   font-weight: 700;
@@ -332,6 +360,7 @@ body {
   color: #c05050;
   letter-spacing: 0.6px;
   text-transform: uppercase;
+  transform: translateX(-10px);
 }
 
 /* ── TRIANGLES ── */
@@ -366,7 +395,7 @@ body {
 }
 
 /* bottom-left */
-.tri-bot-left { position: absolute; bottom: 0; left: 0; align-items: flex-end; }
+.tri-bot-left { position: absolute; bottom: -222px; left: -44px; align-items: flex-end; }
 .tr-pink-bl {
   width: 0; height: 0;
   border-right: 80px solid transparent;
@@ -382,13 +411,14 @@ body {
 /* ── DIVIDER ── */
 .hdr-line {
   height: 2px;
-  background: linear-gradient(to left, #d97070, #c8a98a 50%, #9a9a9a);
+  background: #e1712f;
   margin: 0 32px;
 }
 
 /* ── DATE ── */
 .date-row {
-  text-align: left;
+  text-align: right;
+  margin-bottom: 10px;
   direction: ltr;
   padding: 10px 32px 0;
   font-size: 12.5px;
