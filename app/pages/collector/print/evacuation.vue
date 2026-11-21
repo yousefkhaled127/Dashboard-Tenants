@@ -47,36 +47,20 @@
     <div ref="pageRef" class="page" dir="rtl">
 
       <!-- watermark -->
-      <div class="watermark" aria-hidden="true">
-        <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M60 10 L100 36 L100 100 L20 100 L20 36 Z" stroke="#c8a98a" stroke-width="3" fill="none"/>
-          <path d="M60 10 L20 36" stroke="#c8a98a" stroke-width="3"/>
-          <path d="M60 10 L100 36" stroke="#c8a98a" stroke-width="3"/>
-          <rect x="47" y="68" width="26" height="32" rx="2" stroke="#c8a98a" stroke-width="2.5" fill="none"/>
-          <rect x="24" y="56" width="18" height="14" rx="1.5" stroke="#c8a98a" stroke-width="2" fill="none"/>
-          <rect x="78" y="56" width="18" height="14" rx="1.5" stroke="#c8a98a" stroke-width="2" fill="none"/>
-          <line x1="60" y1="68" x2="60" y2="100" stroke="#c8a98a" stroke-width="1.5"/>
-          <circle cx="60" cy="8" r="5" fill="#c05050"/>
-        </svg>
-      </div>
+   
+<!-- TOP LEFT -->
+<img class="corner-art corner-top-left" src="../../../assets/image/imgmsls.png" alt="">
+<img class="corner-art corner-bottom-right" src="../../../assets/image/imgmsls2.png" alt="">
 
       <!-- ══ HEADER ══ -->
       <div class="hdr">
-        <div class="tri-corner tri-top-right">
-          <div class="tri tr-pink-tr"></div>
-          <!-- <div class="tri tr-gray-tr"></div> -->
-        </div>
+ 
 
         <div class="logo-center">
-            <AppLogo :size="82" />
-          <div class="logo-name-ar">مؤسسة سعود على السقامي للعقارات</div>
-          <div class="logo-name-en">SAUD ALI ALSAQAMI REAL ESTATE EST.</div>
+        <img style="width: 200px;" src="../../../assets/image/Modern Bilingual Real Estate Logo.png" alt="">
         </div>
 
-        <div class="tri-corner tri-top-left">
-          <div class="tri tr-gray-tl"></div>
-          <!-- <div class="tri tr-pink-tl"></div> -->
-        </div>
+    
       </div>
       <div class="date-row">تاريخ: {{ today }}</div>
 
@@ -126,18 +110,7 @@
       </div>
 
       <!-- ══ BOTTOM BAR ══ -->
-      <div class="bottom-bar">
-        <div class="tri-corner tri-bot-left">
-          <div class="tri tr-pink-bl"></div>
-          <!-- <div class="tri tr-gray-bl"></div> -->
-        </div>
-        <div class="bottom-info" dir="ltr">
-          <span>Tel: 0112004744</span>
-          <span>Email: alsaqami.realestate@gmail.com</span>
-          <span>Commercial Register: 1010738209</span>
-          <span>Address: الرياض / البنية / شارع آل مرشد / المملكة العربية السعودية</span>
-        </div>
-      </div>
+  
       </div>
 
       <!-- ══ FOOTER ══ -->
@@ -251,6 +224,32 @@ async function saveImage() {
 <style>
 *  { margin: 0; padding: 0; box-sizing: border-box; }
 
+.corner-art {
+  position: absolute;
+  width: 155px;
+  height: 170px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.5;
+}
+
+.corner-top-left {
+  top: 0;
+  left: 0;
+}
+
+.corner-bottom-right {
+  bottom: 0;
+  right: 0;
+}
+
+@media print {
+  .corner-art {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
 body {
   font-family: 'Tajawal', Arial, sans-serif;
   background: #d9d9d9;
@@ -306,7 +305,7 @@ body {
     flex-direction: column;
     align-items: start;
     width: 300px;
-    opacity: 0.5;
+    padding-right: 35px;
 }
 .logo-center svg {
   width: 180px !important;

@@ -8,7 +8,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://f06d-156-199-4-135.ngrok-free.app/api',
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://69.62.121.142:8091/api',
     },
   },
 
